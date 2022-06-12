@@ -32,6 +32,9 @@ argument = metavar
 metavar :: Text -> CliOption a
 metavar t = CliOption Nothing Nothing (Just t) Nothing Nothing
 
+switch :: Char -> CliOption Bool
+switch c = CliOption Nothing (Just c) Nothing Nothing (Just True)
+
 name :: Text -> CliOption a
 name t = CliOption (Just t) Nothing Nothing Nothing Nothing
 
@@ -81,7 +84,7 @@ parseCommand (Command n p) t = do
 
 findCommandArgs :: Text -> [Text] -> Maybe [Text]
 findCommandArgs _ [] = Nothing
-findCommandArgs n (n':rest) = if n == n' then Just rest else findCommandArgs n rest
+findCommandArgs n (n' : rest) = if n == n' then Just rest else findCommandArgs n rest
 
 parse :: Parser a -> Text -> Either Text a
 parse p = lex . fmap T.strip . T.splitOn " " >=> parseLexed p
@@ -91,11 +94,16 @@ lex [] = Right []
 lex (n : v : rest) = do
   case lexOptionValue n v of
     Left _ -> do
-      l <- lexFlag n
-      (l :) <$> lex (v : rest)
-    Right l ->
-      (l :) <$> lex rest
-lex [n] = pure <$> lexFlag n
+      case lexFlag n of
+        Right f ->
+          (f :) <$> lex (v : rest)
+        Left _ -> (:) <$> lexArg n <*> lex (v : rest)
+    Right o ->
+      (o :) <$> lex rest
+lex [n] =
+  pure <$> case lexFlag n of
+    Right v -> Right v
+    Left _ -> lexArg n
 
 lexOptionValue :: Text -> Text -> Either Text Lexed
 lexOptionValue n v =
@@ -109,9 +117,13 @@ lexFlag n =
     then Right $ FlagName (T.drop 1 n)
     else Left $ "not a correct flag name, it should start with -. Got: " <> n
 
+lexArg :: Text -> Either Text Lexed
+lexArg = Right . ArgValue
+
 data Lexed
   = FlagName Text
   | OptionValue Text Text -- optionName, optionValue
+  | ArgValue Text -- optionName, optionValue
   deriving (Eq, Show)
 
 parser :: CliOption a -> Decoder a -> Parser a
@@ -123,6 +135,8 @@ parser o d = Parser $ \lexed ->
       case _defaultValue o of
         Nothing -> Left $ "missing default value for " <> display o
         Just v -> pure v
+    Just (ArgValue v) ->
+      decode d v
     Nothing ->
       case _defaultValue o of
         Nothing ->
@@ -133,21 +147,23 @@ parser o d = Parser $ \lexed ->
 findOption :: CliOption a -> [Lexed] -> Maybe Lexed
 findOption _o [] = Nothing
 findOption o (f@(FlagName n) : rest) =
-  if show (_shortName o) == n
+  if (T.singleton <$>_shortName o) == Just n
     then Just f
     else findOption o rest
 findOption o (ov@(OptionValue n _) : rest) =
   if _name o == Just n
     then Just ov
     else findOption o rest
+findOption _o (ArgValue v : _) =
+  Just (ArgValue v)
 
 -- * DECODERS
 
 intDecoder :: Decoder Int
-intDecoder = Decoder $ \t -> maybe (Left $ "cannot read as an Int" <> t) Right (readMaybe t)
+intDecoder = Decoder $ \t -> maybe (Left $ "cannot read as an Int: " <> t) Right (readMaybe t)
 
 boolDecoder :: Decoder Bool
-boolDecoder = Decoder $ \t -> maybe (Left $ "cannot read as a Bool" <> t) Right (readMaybe t)
+boolDecoder = Decoder $ \t -> maybe (Left $ "cannot read as a Bool: " <> t) Right (readMaybe t)
 
 textDecoder :: Decoder Text
 textDecoder = Decoder $ \t -> Right t
