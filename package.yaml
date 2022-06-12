@@ -76,6 +76,7 @@ tests:
     source-dirs:
       - test
     dependencies:
+      - registry-options
       - hedgehog
       - registry-hedgehog
       - tasty
