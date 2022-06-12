@@ -21,6 +21,8 @@ source-repository head
   location: https://github.com/etorreborre/registry-options
 
 library
+  exposed-modules:
+      Data.Registry.Options
   other-modules:
       Paths_registry_options
   hs-source-dirs:
@@ -74,6 +76,7 @@ test-suite spec
   main-is: test.hs
   other-modules:
       AutoDiscoveredSpecs
+      Test.Data.Registry.Options.HelloSpec
       Paths_registry_options
   hs-source-dirs:
       test
