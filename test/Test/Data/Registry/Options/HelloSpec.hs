@@ -34,11 +34,11 @@ data Sample = Sample
   }
   deriving (Eq, Show)
 
-repeatOption :: Option Int
-repeatOption = option { name = "repeat" }
+repeatOption :: CliOption Int
+repeatOption = name "repeat"
 
-quietOption :: Option Bool
-quietOption = option { name = "quiet", shortName = Just 'q', defaultValue = Just True }
+quietOption :: CliOption Bool
+quietOption = name "quiet" <> shortName 'q' <> defaultValue True
 
-helloOption :: Option Text
-helloOption = option { name = "hello" }
+helloOption :: CliOption Text
+helloOption = name "hello"
