@@ -10,18 +10,19 @@ data Option a = Option
   { name :: Text,
     shortName :: Maybe Char,
     metavar :: Maybe Text,
+    help :: Maybe Text,
     defaultValue :: Maybe a
   }
   deriving (Eq, Show)
 
 option :: Option a
-option = Option "undefined" Nothing Nothing Nothing
+option = Option "undefined" Nothing Nothing Nothing Nothing
 
 display :: Option a -> Text
-display (Option n Nothing (Just m) _) = "--" <> n <> " " <> m
-display (Option n (Just s) (Just m) _) = "[--" <> n <> "| -" <> show s <> "]" <> " " <> m
-display (Option n Nothing Nothing _) = "--" <> n
-display (Option n (Just s) Nothing _) = "--" <> n <> ", -" <> show s
+display (Option n Nothing (Just m) _ _) = "--" <> n <> " " <> m
+display (Option n (Just s) (Just m) _ _) = "[--" <> n <> "| -" <> show s <> "]" <> " " <> m
+display (Option n Nothing Nothing _ _) = "--" <> n
+display (Option n (Just s) Nothing _ _) = "--" <> n <> ", -" <> show s
 
 newtype Decoder a = Decoder {decode :: Text -> Either Text a}
 
@@ -35,8 +36,27 @@ instance Applicative Parser where
     a <- fa lexed
     pure (l a)
 
+data Command a = Command
+  { commandName :: Text,
+    commandParser :: Parser a
+  }
+
+command :: Text -> Parser a -> Command a
+command = Command
+
+parseCommand :: Command a -> Text -> Either Text a
+parseCommand (Command name p) t = do
+  let ts = T.strip <$> T.splitOn " " t
+  case findCommandArgs name ts of
+    Nothing -> Left $ "command not found: " <> name
+    Just args -> lex args >>= parseLexed p
+
+findCommandArgs :: Text -> [Text] -> Maybe [Text]
+findCommandArgs _ [] = Nothing
+findCommandArgs name (n:rest) = if name == n then Just rest else findCommandArgs name rest
+
 parse :: Parser a -> Text -> Either Text a
-parse p = lex . T.splitOn " " >=> parseLexed p
+parse p = lex . fmap T.strip . T.splitOn " " >=> parseLexed p
 
 lex :: [Text] -> Either Text [Lexed]
 lex [] = Right []
@@ -84,12 +104,14 @@ parser o d = Parser $ \lexed ->
 
 findOption :: Option a -> [Lexed] -> Maybe Lexed
 findOption _o [] = Nothing
-findOption o (f@(FlagName n): rest) =
-  if show (shortName o) == n then Just f
-  else findOption o rest
-findOption o (ov@(OptionValue n _): rest) =
-  if name o == n then Just ov
-  else findOption o rest
+findOption o (f@(FlagName n) : rest) =
+  if show (shortName o) == n
+    then Just f
+    else findOption o rest
+findOption o (ov@(OptionValue n _) : rest) =
+  if name o == n
+    then Just ov
+    else findOption o rest
 
 -- * DECODERS
 
