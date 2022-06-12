@@ -70,7 +70,7 @@ exactly :: Int -> CliOption a -> CliOption [a]
 exactly i (CliOption n s m h v _) = CliOption n s m h (pure <$> v) (SomeCardinality i)
 
 optional :: CliOption a -> CliOption (Maybe a)
-optional (CliOption n s m h v _) = CliOption n s m h (pure <$> v) ManyCardinality
+optional (CliOption n s m h _ _) = CliOption n s m h (pure Nothing) (ZeroOr 1)
 
 display :: CliOption a -> Text
 display (CliOption (Just n) Nothing (Just m) _ _ _) = "--" <> n <> " " <> m
@@ -149,8 +149,10 @@ parser o = fun $ \d ->
       Just n ->
         case findOption o n lexed of
           [] -> case _defaultValue o of
-            Nothing -> Left $ "missing default value for flag: " <> display o
-            Just def -> Right def
+            Nothing ->
+              Left $ "missing default value for flag: " <> display o
+            Just def ->
+              Right def
           ls -> decode d (unlexValues ls)
       Nothing -> do
         let args = takeWhile isArgValue $ lexed
@@ -215,7 +217,10 @@ boolDecoder :: Decoder Bool
 boolDecoder = Decoder $ \t -> maybe (Left $ "cannot read as a Bool: " <> t) Right (readMaybe t)
 
 textDecoder :: Decoder Text
-textDecoder = Decoder Right
+textDecoder = Decoder $ \t -> if T.null t then Left "empty text" else Right t
 
 manyOf :: Decoder a -> Decoder [a]
 manyOf d = Decoder $ \t -> for (T.strip <$> T.splitOn " " t) (decode d)
+
+maybeOf :: Decoder a -> Decoder (Maybe a)
+maybeOf d = Decoder $ \t -> either (const $ pure Nothing) (Right . Just) (decode d t)
