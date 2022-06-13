@@ -35,10 +35,10 @@ parserOf :: forall a b. (ApplyVariadic Parser a b, Typeable a, Typeable b) => a 
 parserOf = funTo @Parser
 
 parser :: forall a. (Typeable a) => CliOption a -> Typed (Decoder a -> Parser a)
-parser o = fun $ makeParser o
+parser o = fun $ parseWith o
 
-makeParser :: forall a. (Typeable a) => CliOption a -> Decoder a -> Parser a
-makeParser o d =
+parseWith :: forall a. (Typeable a) => CliOption a -> Decoder a -> Parser a
+parseWith o d =
   Parser $ \lexed -> do
     case getName o of
       Just n ->
