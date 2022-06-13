@@ -77,3 +77,11 @@ parseWith o d =
     missingReturn = case _missingValue o of
       Just def -> pure def
       Nothing -> Left $ "missing value for argument for: " <> display o
+
+command :: Text -> (a -> b) -> Parser a -> Parser b
+command commandName constructor p = Parser $ \case
+  (n : rest)
+    | ArgValue commandName == n ->
+      fmap constructor (parseLexed p rest)
+  _ ->
+    Left $ "command not found. Expected: " <> commandName

@@ -78,11 +78,3 @@ commands :: Text -> Text -> Parser AddCommand -> Parser RmCommand -> Parser GitC
 commands p1Name p2Name p1 p2 =
   command p1Name Add p1
     <|> command p2Name Rm p2
-
-command :: Text -> (a -> b) -> Parser a -> Parser b
-command commandName constructor p = Parser $ \case
-  (n : rest)
-    | ArgValue commandName == n ->
-      fmap constructor (parseLexed p rest)
-  _ ->
-    Left $ "command not found. Expected: " <> commandName

@@ -43,8 +43,8 @@ data ResetCommand = ResetCommand Bool Int
 
 commands :: Text -> Text -> Parser InitCommand -> Parser ResetCommand -> Parser Commands
 commands p1Name p2Name p1 p2 =
-  command p1Name Init p1
-    <|> command p2Name Reset p2
+  D.command p1Name Init p1
+    <|> D.command p2Name Reset p2
 
 command :: Text -> (a -> b) -> Parser a -> Parser b
 command commandName constructor p = Parser $ \case
