@@ -1,4 +1,4 @@
-module Test.Data.Registry.Options.HelloSpec where
+module Test.Data.Registry.Options.ParseSpec where
 
 import Data.Registry
 import Data.Registry.Options
@@ -12,40 +12,40 @@ test_lexed = test "lex the command line" $ do
   lex ["-q", "eric", "etorreborre", "--repeat", "10"] === [FlagName "q", ArgValue "eric", ArgValue "etorreborre", FlagName "repeat", ArgValue "10"]
   lex ["-q","--repeat", "10", "eric", "etorreborre"] === [FlagName "q", FlagName "repeat", ArgValue "10", ArgValue "eric", ArgValue "etorreborre"]
 
-test_hello_parser = test "simple hello parser" $ do
-  let p = make @(Parser Sample) parsers
-  parse p "-q --hello eric --repeat 10" === Right (Sample "eric" True 10)
+test_simple_parser = test "simple parser" $ do
+  let p = make @(Parser Simple) parsers
+  parse p "-q --hello eric --repeat 10" === Right (Simple "eric" True 10)
 
 test_parse_argument = test "parse options and arguments" $ do
-  let p = make @(Parser Sample) (parser (argument @Text "hello") <: parsers)
-  parse p "eric -q --repeat 10" === Right (Sample "eric" True 10)
+  let p = make @(Parser Simple) (parser (argument @Text "hello") <: parsers)
+  parse p "eric -q --repeat 10" === Right (Simple "eric" True 10)
 
 test_parse_many_arguments = test "parse options and arguments with repeated values" $ do
   let parsers' =
-        funTo @Parser SampleRepeated
+        funTo @Parser SimpleRepeated
           <: parser (many (argument @Text "hello"))
           <: parser (many (name @Int "repeat"))
           <: parser (switch 'q')
           <: parsers
 
-  let p = make @(Parser SampleRepeated) parsers'
-  parse p "eric etorreborre -q --repeat 10 12" === Right (SampleRepeated ["eric", "etorreborre"] True [10, 12])
+  let p = make @(Parser SimpleRepeated) parsers'
+  parse p "eric etorreborre -q --repeat 10 12" === Right (SimpleRepeated ["eric", "etorreborre"] True [10, 12])
 
 test_parse_optional = test "parse optional options and arguments" $ do
   let parsers' =
-        funTo @Parser SampleOptional
+        funTo @Parser SimpleOptional
           <: parser (optional (argument @Text "hello"))
           <: parser (optional (switch 'q'))
           <: parser (optional (name @Int "repeat"))
           <: parsers
 
-  let p = make @(Parser SampleOptional) parsers'
-  parse p "" === Right (SampleOptional Nothing Nothing Nothing)
+  let p = make @(Parser SimpleOptional) parsers'
+  parse p "" === Right (SimpleOptional Nothing Nothing Nothing)
 
 -- * HELPERS
 
 parsers =
-  funTo @Parser Sample
+  funTo @Parser Simple
     <: parser (name @Text "hello")
     <: parser (switch 'q')
     <: parser (name @Int "repeat")
@@ -59,11 +59,11 @@ parsers =
     <: fun boolDecoder
     <: fun textDecoder
 
-data Sample = Sample Text Bool Int
+data Simple = Simple Text Bool Int
   deriving (Eq, Show)
 
-data SampleRepeated = SampleRepeated [Text] Bool [Int]
+data SimpleRepeated = SimpleRepeated [Text] Bool [Int]
   deriving (Eq, Show)
 
-data SampleOptional = SampleOptional (Maybe Text) (Maybe  Bool) (Maybe Int)
+data SimpleOptional = SimpleOptional (Maybe Text) (Maybe  Bool) (Maybe Int)
   deriving (Eq, Show)
