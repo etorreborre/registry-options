@@ -13,16 +13,16 @@ test_lexed = test "lex the command line" $ do
   lex ["-q", "--repeat", "10", "eric", "etorreborre"] === [FlagName "q", FlagName "repeat", ArgValue "10", ArgValue "eric", ArgValue "etorreborre"]
 
 test_simple_parser = test "simple parser" $ do
-  let p = make @(Parser Simple) parsers
+  let p = make @(Parser Simple) simpleParser
   parse p "-q --hello eric --repeat 10" === Right (Simple "eric" True 10)
 
 test_parse_argument = test "parse options and arguments" $ do
-  let p = make @(Parser Simple) (parser (argument @Text "hello") <: parsers)
+  let p = make @(Parser Simple) (parser (argument @Text "hello") <: simpleParser)
   parse p "eric -q --repeat 10" === Right (Simple "eric" True 10)
 
 test_parse_many_arguments = test "parse options and arguments with repeated values" $ do
   let parsers' =
-        funTo @Parser SimpleRepeated
+        parserOf SimpleRepeated
           <: parser (many (argument @Text "hello"))
           <: parser (many (name @Int "repeat"))
           <: parser (switch 'q')
@@ -33,7 +33,7 @@ test_parse_many_arguments = test "parse options and arguments with repeated valu
 
 test_parse_follow_arguments = test "all values after -- are considered as arguments" $ do
   let parsers' =
-        funTo @Parser SimpleRepeated
+        parserOf SimpleRepeated
           <: parser (many (argument @Text "hello"))
           <: parser (many (name @Int "repeat"))
           <: parser (switch 'q')
@@ -47,7 +47,7 @@ test_parse_follow_arguments = test "all values after -- are considered as argume
 
 test_parse_optional = test "parse optional options and arguments" $ do
   let parsers' =
-        funTo @Parser SimpleOptional
+        parserOf SimpleOptional
           <: parser (optional (argument @Text "hello"))
           <: parser (optional (switch 'q'))
           <: parser (optional (name @Int "repeat"))
@@ -72,12 +72,17 @@ test_parse_alternatives = test "parse alternative options and arguments" $ do
 
 -- * HELPERS
 
+simpleParser =
+  parserOf Simple <: parsers
+
 parsers =
-  funTo @Parser Simple
-    <: parser (name @Text "hello")
+  parser (name @Text "hello")
     <: parser (switch 'q')
     <: parser (name @Int "repeat")
-    <: manyOf @Int
+    <: decoders
+
+decoders =
+  manyOf @Int
     <: manyOf @Bool
     <: manyOf @Text
     <: maybeOf @Int

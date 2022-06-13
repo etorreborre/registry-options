@@ -15,8 +15,8 @@ test_commands = test "parse commands" $ do
 
 parsers =
   fun (commands "init" "reset")
-    <: funTo @Parser InitCommand
-    <: funTo @Parser ResetCommand
+    <: parserOf InitCommand
+    <: parserOf ResetCommand
     <: parser (name @Text "name")
     <: parser (switch 'f')
     <: parser (name @Int "number")

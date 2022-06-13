@@ -3,7 +3,7 @@
 
 module Data.Registry.Options.Parser where
 
-import Data.Registry (fun)
+import Data.Registry (fun, funTo, ApplyVariadic)
 import Data.Registry.Internal.Types (Typed)
 import Data.Registry.Options.CliOption
 import Data.Registry.Options.Decoder
@@ -29,6 +29,10 @@ instance Alternative Parser where
 
 parse :: Parser a -> Text -> Either Text a
 parse p = parseLexed p . lexArgs
+
+-- | Create a Parser a for a given constructor of type a
+parserOf :: forall a b. (ApplyVariadic Parser a b, Typeable a, Typeable b) => a -> Typed b
+parserOf = funTo @Parser
 
 parser :: forall a. (Typeable a) => CliOption a -> Typed (Decoder a -> Parser a)
 parser o = fun $ \d ->
