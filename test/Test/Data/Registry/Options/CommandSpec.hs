@@ -16,11 +16,17 @@ parsers =
   fun (commands "init" "reset")
     <: parserOf InitCommand
     <: parserOf ResetCommand
-    <: parser (name @Text "name")
+    <: optionsParsers
+
+optionsParsers =
+     parser (name @Text "name")
     <: parser (switch 'f')
     <: parser (name @Int "number")
     <: maybeOf @Int
-    <: addDecoder D.int
+    <: decoders
+
+decoders =
+     addDecoder D.int
     <: addDecoder D.bool
     <: addDecoder D.text
 
