@@ -81,6 +81,7 @@ test-suite spec
   main-is: test.hs
   other-modules:
       AutoDiscoveredSpecs
+      Test.Data.Registry.Options.CommandSpec
       Test.Data.Registry.Options.ParseSpec
       Paths_registry_options
   hs-source-dirs:
