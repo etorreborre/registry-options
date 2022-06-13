@@ -9,17 +9,18 @@ data CliOption a = CliOption
     _shortName :: Maybe Char,
     _metavar :: Maybe Text,
     _help :: Maybe Text,
-    _defaultValue :: Maybe a,
+    _defaultValue :: Maybe a, -- when the flag is present but no values specified
+    _missingValue :: Maybe a, -- when the flag is missing
     _cardinality :: Cardinality
   }
   deriving (Eq, Show)
 
 instance Semigroup (CliOption a) where
-  CliOption n1 s1 m1 h1 d1 c1 <> CliOption n2 s2 m2 h2 d2 c2 =
-    CliOption (n1 <|> n2) (s1 <|> s2) (m1 <|> m2) (h1 <|> h2) (d1 <|> d2) (c1 <> c2)
+  CliOption n1 s1 m1 h1 d1 v1 c1 <> CliOption n2 s2 m2 h2 d2 v2 c2 =
+    CliOption (n1 <|> n2) (s1 <|> s2) (m1 <|> m2) (h1 <|> h2) (d1 <|> d2) (v1 <|> v2) (c1 <> c2)
 
 instance Monoid (CliOption a) where
-  mempty = CliOption Nothing Nothing Nothing Nothing Nothing One
+  mempty = CliOption Nothing Nothing Nothing Nothing Nothing Nothing One
   mappend = (<>)
 
 data Cardinality
@@ -52,7 +53,7 @@ metavar :: Text -> CliOption a
 metavar t = option {_metavar = Just t}
 
 switch :: Char -> CliOption Bool
-switch c = option {_shortName = Just c, _defaultValue = Just True, _cardinality = One}
+switch c = option {_shortName = Just c, _defaultValue = Just True, _missingValue = Just False, _cardinality = Zero}
 
 name :: Text -> CliOption a
 name t = option {_name = Just t, _cardinality = One}
@@ -67,20 +68,23 @@ defaultValue :: a -> CliOption a
 defaultValue a = option {_defaultValue = Just a}
 
 many :: CliOption a -> CliOption [a]
-many (CliOption n s m h v _) = CliOption n s m h (pure <$> v) Many
+many (CliOption n s m h d v _) = CliOption n s m h (pure <$> d) (pure <$> v) Many
+
+one :: CliOption a -> CliOption a
+one (CliOption n s m h d v _) = CliOption n s m h d v One
 
 optional :: CliOption a -> CliOption (Maybe a)
-optional (CliOption n s m h _ _) = CliOption n s m h (pure Nothing) Zero
+optional (CliOption n s m h _ _ _) = CliOption n s m h (pure Nothing) (pure Nothing) Zero
 
 display :: CliOption a -> Text
-display (CliOption (Just n) Nothing (Just m) _ _ c) = "--" <> n <> " " <> m <> displayCardinality c
-display (CliOption (Just n) (Just s) (Just m) _ _ c) = "[--" <> n <> "| -" <> T.singleton s <> "]" <> " " <> m <> displayCardinality c
-display (CliOption (Just n) Nothing Nothing _ _ c) = "--" <> n <> displayCardinality c
-display (CliOption (Just n) (Just s) Nothing _ _ c) = "--" <> n <> ", -" <> T.singleton s <> displayCardinality c
-display (CliOption Nothing (Just s) Nothing _ _ c) = "-" <> T.singleton s <> displayCardinality c
-display (CliOption Nothing (Just s) (Just m) _ _ c) = "-" <> T.singleton s <> m <> displayCardinality c
-display (CliOption Nothing _ (Just m) _ _ c) = m <> displayCardinality c
-display (CliOption Nothing _ Nothing _ _ c) = "" <> displayCardinality c
+display (CliOption (Just n) Nothing (Just m) _ _ _ c) = "--" <> n <> " " <> m <> displayCardinality c
+display (CliOption (Just n) (Just s) (Just m) _ _ _ c) = "[--" <> n <> "| -" <> T.singleton s <> "]" <> " " <> m <> displayCardinality c
+display (CliOption (Just n) Nothing Nothing _ _ _ c) = "--" <> n <> displayCardinality c
+display (CliOption (Just n) (Just s) Nothing _ _ _ c) = "--" <> n <> ", -" <> T.singleton s <> displayCardinality c
+display (CliOption Nothing (Just s) Nothing _ _ _ c) = "-" <> T.singleton s <> displayCardinality c
+display (CliOption Nothing (Just s) (Just m) _ _ _ c) = "-" <> T.singleton s <> m <> displayCardinality c
+display (CliOption Nothing _ (Just m) _ _ _ c) = m <> displayCardinality c
+display (CliOption Nothing _ Nothing _ _ _ c) = "" <> displayCardinality c
 
 data Name
   = LongShort Text Text

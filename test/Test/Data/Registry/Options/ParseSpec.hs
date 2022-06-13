@@ -2,7 +2,7 @@ module Test.Data.Registry.Options.ParseSpec where
 
 import Data.Registry
 import Data.Registry.Options as D
-import Protolude hiding (Option, many, option, optional)
+import Protolude hiding (Option, many, one, option, optional)
 import Test.Tasty.Hedgehogx hiding (defaultValue)
 
 test_lexed = test "lex the command line" $ do
@@ -60,7 +60,7 @@ test_parse_alternatives = test "parse alternative options and arguments" $ do
   let parsers' =
         fun simpleAlternative
           <: parser (argument @Text "hello")
-          <: parser (switch 'q' <> name "quiet")
+          <: parser (one (switch 'q' <> name "quiet"))
           <: parser (name @Int "repeat")
           <: optionParsers
 
@@ -68,7 +68,7 @@ test_parse_alternatives = test "parse alternative options and arguments" $ do
   parse p "" === Left "no arguments to decode for --repeat (1)"
   parse p "-q" === Right (SimpleAlternative1 True)
   parse p "hello" === Right (SimpleAlternative2 "hello")
-  
+
   findOptionValues (LongOnly "repeat") One [FlagName "repeat", ArgValue "10"] === Just [ArgValue "10"]
   parse p "--repeat 10" === Right (SimpleAlternative3 10)
 
