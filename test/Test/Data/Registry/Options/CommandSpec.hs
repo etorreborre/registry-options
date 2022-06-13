@@ -1,7 +1,6 @@
 module Test.Data.Registry.Options.CommandSpec where
 
 import Data.Registry
-import qualified Data.Text as T
 import Data.Registry.Options as D
 import Protolude hiding (Option, many, option, optional)
 import Test.Tasty.Hedgehogx hiding (defaultValue)
@@ -37,9 +36,14 @@ data ResetCommand = ResetCommand Bool Int
   deriving (Eq, Show)
 
 commands :: Text -> Text -> Parser InitCommand -> Parser ResetCommand -> Parser Commands
-commands p1Name p2Name p1 p2 = Parser $ \case
-  ls@(n: _) | ArgValue p1Name == n ->
-    fmap Init (parseLexed p1 ls)
-  ls@(n: _) | ArgValue p2Name == n ->
-    fmap Reset (parseLexed p2 ls)
-  _ -> Left $ "no command name not found. Expected one of: " <> T.intercalate "," [p1Name, p2Name]
+commands p1Name p2Name p1 p2 =
+  command p1Name Init p1
+    <|> command p2Name Reset p2
+
+command :: Text -> (a -> b) -> Parser a -> Parser b
+command commandName constructor p = Parser $ \case
+  ls@(n : _)
+    | ArgValue commandName == n ->
+      fmap constructor (parseLexed p ls)
+  _ ->
+    Left $ "no command name not found. Expected: " <> commandName
