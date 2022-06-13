@@ -41,18 +41,19 @@ parseWith :: forall a. (Typeable a) => CliOption a -> Decoder a -> Parser a
 parseWith o d =
   Parser $ \lexed -> do
     case getName o of
+      -- named option or switch
       Just n ->
         case findOptionValues n (_cardinality o) lexed of
           Nothing ->
             Left $ "no arguments to decode for " <> display o
           Just [] ->
-            defaultReturn
+            if any (sameName n) lexed then
+              defaultReturn
+            else
+              missingReturn
           Just ls ->
-            case _defaultValue o of
-              Just def ->
-                Right def
-              Nothing ->
-                decode d (unlexValues ls)
+            decode d (unlexValues ls)
+      -- arguments
       Nothing -> do
         let args =
               if any isDoubleDash lexed
@@ -60,7 +61,7 @@ parseWith o d =
                 else takeWhile isArgValue lexed
         case _cardinality o of
           Zero ->
-            defaultReturn
+            missingReturn
           One ->
             case args of
               [] ->
@@ -71,5 +72,8 @@ parseWith o d =
             decode d (unlexValues args)
   where
     defaultReturn = case _defaultValue o of
+      Just def -> pure def
+      Nothing -> Left $ "missing default value for argument for: " <> display o
+    missingReturn = case _missingValue o of
       Just def -> pure def
       Nothing -> Left $ "missing value for argument for: " <> display o
