@@ -21,6 +21,13 @@ instance Applicative Parser where
     a <- fa lexed
     pure (l a)
 
+instance Alternative Parser where
+  empty = Parser (const $ Left "nothing to parse")
+  Parser p1 <|> Parser p2 = Parser $ \lexed ->
+    case p1 lexed of
+      Right a -> Right a
+      _ -> p2 lexed
+
 parse :: Parser a -> Text -> Either Text a
 parse p = parseLexed p . lex . fmap T.strip . T.splitOn " "
 
@@ -30,14 +37,15 @@ parser o = fun $ \d ->
     case getName o of
       Just n ->
         case findOption o n lexed of
-          [] -> case _defaultValue o of
+          Nothing -> Left $ "no arguments to decode for " <> display o
+          Just [] -> case _defaultValue o of
             Nothing ->
               Left $ "missing default value for flag: " <> display o
             Just def ->
               Right def
-          ls -> decode d (unlexValues ls)
+          Just ls -> decode d (unlexValues ls)
       Nothing -> do
-        let args = takeWhile isArgValue $ lexed
+        let args = takeWhile isArgValue lexed
         case _cardinality o of
           SomeCardinality i ->
             decode d (unlexValues $ take i args)

@@ -35,6 +35,10 @@ instance Semigroup Cardinality where
   SomeCardinality n <> ZeroOr _ = SomeCardinality n
   ZeroOr _ <> ZeroOr n = SomeCardinality n
 
+hasZeroCardinality :: Cardinality -> Bool
+hasZeroCardinality (ZeroOr _) = True
+hasZeroCardinality _ = False
+
 option :: CliOption a
 option = mempty
 
@@ -73,6 +77,8 @@ display (CliOption (Just n) Nothing (Just m) _ _ _) = "--" <> n <> " " <> m
 display (CliOption (Just n) (Just s) (Just m) _ _ _) = "[--" <> n <> "| -" <> show s <> "]" <> " " <> m
 display (CliOption (Just n) Nothing Nothing _ _ _) = "--" <> n
 display (CliOption (Just n) (Just s) Nothing _ _ _) = "--" <> n <> ", -" <> show s
+display (CliOption Nothing (Just s) Nothing _ _ _) = "-" <> T.singleton s
+display (CliOption Nothing (Just s) (Just m) _ _ _) = "-" <> T.singleton s <> m
 display (CliOption Nothing _ (Just m) _ _ _) = m
 display (CliOption Nothing _ Nothing _ _ _) = ""
 
@@ -82,20 +88,33 @@ data Name
   | ShortOnly Text
   deriving (Eq, Show)
 
-findOption :: CliOption a -> Name -> [Lexed] -> [Lexed]
-findOption _ _ [] = []
+findOption :: CliOption a -> Name -> [Lexed] -> Maybe [Lexed]
+findOption _ _ [] = Nothing
 findOption o n ls = do
-  let args = drop 1 $ dropWhile (not . sameName n) ls
-  case _cardinality o of
-    SomeCardinality i ->
-      take i args
-    ZeroOr i ->
-      case args of
-        [] -> []
-        vs | length vs == i -> vs
-        _ -> []
-    ManyCardinality ->
-      args
+  let args = dropWhile (not . sameName n) ls
+  case args of
+    [] | hasZeroCardinality (_cardinality o) -> Just []
+    [n']
+      | sameName n n' && isJust (_defaultValue o) ->
+        Just []
+    n' : as | sameName n n' ->
+      case _cardinality o of
+        SomeCardinality i ->
+          case take i as of
+            [] -> emptyReturn
+            other -> Just other
+        ZeroOr i ->
+          case as of
+            [] -> emptyReturn
+            vs | length vs == i -> Just vs
+            _ -> Nothing
+        ManyCardinality ->
+          case as of
+            [] -> emptyReturn
+            _ -> Just args
+    _ -> Nothing
+  where
+    emptyReturn = if isJust $ _defaultValue o then Just [] else Nothing
 
 sameName :: Name -> Lexed -> Bool
 sameName (LongShort n s) (FlagName f) = n == f || s == f
