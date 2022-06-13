@@ -19,24 +19,27 @@ instance Semigroup (CliOption a) where
     CliOption (n1 <|> n2) (s1 <|> s2) (m1 <|> m2) (h1 <|> h2) (d1 <|> d2) (c1 <> c2)
 
 instance Monoid (CliOption a) where
-  mempty = CliOption Nothing Nothing Nothing Nothing Nothing (SomeCardinality 1)
+  mempty = CliOption Nothing Nothing Nothing Nothing Nothing One
   mappend = (<>)
 
 data Cardinality
-  = SomeCardinality Int
-  | ZeroOr Int
-  | ManyCardinality
+  = Zero
+  | One
+  | Many
   deriving (Eq, Show)
 
 instance Semigroup Cardinality where
-  ManyCardinality <> _ = ManyCardinality
-  __ <> ManyCardinality = ManyCardinality
-  _ <> SomeCardinality n = SomeCardinality n
-  SomeCardinality n <> ZeroOr _ = SomeCardinality n
-  ZeroOr _ <> ZeroOr n = SomeCardinality n
+  Zero <> _ = Zero
+  _ <> Zero = Zero
+  _ <> other = other
+
+displayCardinality :: Cardinality -> Text
+displayCardinality Zero = " (0)"
+displayCardinality One = " (1)"
+displayCardinality Many = " (*)"
 
 hasZeroCardinality :: Cardinality -> Bool
-hasZeroCardinality (ZeroOr _) = True
+hasZeroCardinality Zero = True
 hasZeroCardinality _ = False
 
 option :: CliOption a
@@ -49,10 +52,10 @@ metavar :: Text -> CliOption a
 metavar t = option {_metavar = Just t}
 
 switch :: Char -> CliOption Bool
-switch c = option {_shortName = Just c, _defaultValue = Just True, _cardinality = SomeCardinality 0}
+switch c = option {_shortName = Just c, _defaultValue = Just True, _cardinality = One}
 
 name :: Text -> CliOption a
-name t = option {_name = Just t}
+name t = option {_name = Just t, _cardinality = One}
 
 shortName :: Char -> CliOption a
 shortName t = option {_shortName = Just t}
@@ -64,23 +67,20 @@ defaultValue :: a -> CliOption a
 defaultValue a = option {_defaultValue = Just a}
 
 many :: CliOption a -> CliOption [a]
-many (CliOption n s m h v _) = CliOption n s m h (pure <$> v) ManyCardinality
-
-exactly :: Int -> CliOption a -> CliOption [a]
-exactly i (CliOption n s m h v _) = CliOption n s m h (pure <$> v) (SomeCardinality i)
+many (CliOption n s m h v _) = CliOption n s m h (pure <$> v) Many
 
 optional :: CliOption a -> CliOption (Maybe a)
-optional (CliOption n s m h _ _) = CliOption n s m h (pure Nothing) (ZeroOr 1)
+optional (CliOption n s m h _ _) = CliOption n s m h (pure Nothing) Zero
 
 display :: CliOption a -> Text
-display (CliOption (Just n) Nothing (Just m) _ _ _) = "--" <> n <> " " <> m
-display (CliOption (Just n) (Just s) (Just m) _ _ _) = "[--" <> n <> "| -" <> show s <> "]" <> " " <> m
-display (CliOption (Just n) Nothing Nothing _ _ _) = "--" <> n
-display (CliOption (Just n) (Just s) Nothing _ _ _) = "--" <> n <> ", -" <> show s
-display (CliOption Nothing (Just s) Nothing _ _ _) = "-" <> T.singleton s
-display (CliOption Nothing (Just s) (Just m) _ _ _) = "-" <> T.singleton s <> m
-display (CliOption Nothing _ (Just m) _ _ _) = m
-display (CliOption Nothing _ Nothing _ _ _) = ""
+display (CliOption (Just n) Nothing (Just m) _ _ c) = "--" <> n <> " " <> m <> displayCardinality c
+display (CliOption (Just n) (Just s) (Just m) _ _ c) = "[--" <> n <> "| -" <> T.singleton s <> "]" <> " " <> m <> displayCardinality c
+display (CliOption (Just n) Nothing Nothing _ _ c) = "--" <> n <> displayCardinality c
+display (CliOption (Just n) (Just s) Nothing _ _ c) = "--" <> n <> ", -" <> T.singleton s <> displayCardinality c
+display (CliOption Nothing (Just s) Nothing _ _ c) = "-" <> T.singleton s <> displayCardinality c
+display (CliOption Nothing (Just s) (Just m) _ _ c) = "-" <> T.singleton s <> m <> displayCardinality c
+display (CliOption Nothing _ (Just m) _ _ c) = m <> displayCardinality c
+display (CliOption Nothing _ Nothing _ _ c) = "" <> displayCardinality c
 
 data Name
   = LongShort Text Text
@@ -88,33 +88,33 @@ data Name
   | ShortOnly Text
   deriving (Eq, Show)
 
-findOption :: CliOption a -> Name -> [Lexed] -> Maybe [Lexed]
-findOption _ _ [] = Nothing
-findOption o n ls = do
-  let args = takeWhile (not . isDoubleDash) $ dropWhile (not . sameName n) ls
-  case args of
-    [] | hasZeroCardinality (_cardinality o) -> Just []
-    [n']
-      | sameName n n' && isJust (_defaultValue o) ->
-        Just []
-    n' : as | sameName n n' ->
-      case _cardinality o of
-        SomeCardinality i ->
-          case take i as of
-            [] -> emptyReturn
-            other -> Just other
-        ZeroOr i ->
-          case as of
-            [] -> emptyReturn
-            vs | length vs == i -> Just vs
-            _ -> Nothing
-        ManyCardinality ->
-          case as of
-            [] -> emptyReturn
-            _ -> Just args
-    _ -> Nothing
-  where
-    emptyReturn = if isJust $ _defaultValue o then Just [] else Nothing
+findOptionValues :: Name -> Cardinality -> [Lexed] -> Maybe [Lexed]
+findOptionValues _ _ [] = Nothing
+findOptionValues n cardinality ls = do
+  let args = dropWhile (not . sameName n) ls
+  case cardinality of
+    -- if the cardinality is zero we don't need any value, we will use the default one
+    -- this is the case for optional arguments
+    Zero ->
+      Just []
+    -- if the cardinality is One we need to check if the option name is present
+    One ->
+      case args of
+        (n' : vs) ->
+          if sameName n n'
+            then Just (take 1 $ takeWhile isArgValue vs)
+            else Nothing
+        _ ->
+          Nothing
+    -- if the cardinality is Many we need to check if the option name is present
+    Many ->
+      case args of
+        (n' : vs) ->
+          if sameName n n'
+            then Just (takeWhile isArgValue vs)
+            else Nothing
+        _ ->
+          Nothing
 
 sameName :: Name -> Lexed -> Bool
 sameName (LongShort n s) (FlagName f) = n == f || s == f

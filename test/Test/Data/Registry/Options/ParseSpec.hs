@@ -60,14 +60,16 @@ test_parse_alternatives = test "parse alternative options and arguments" $ do
   let parsers' =
         fun simpleAlternative
           <: parser (argument @Text "hello")
-          <: parser (switch 'q')
+          <: parser (switch 'q' <> name "quiet")
           <: parser (name @Int "repeat")
           <: optionParsers
 
   let p = make @(Parser SimpleAlternative) parsers'
-  parse p "" === Left "no arguments to decode for --repeat"
+  parse p "" === Left "no arguments to decode for --repeat (1)"
   parse p "-q" === Right (SimpleAlternative1 True)
   parse p "hello" === Right (SimpleAlternative2 "hello")
+  
+  findOptionValues (LongOnly "repeat") One [FlagName "repeat", ArgValue "10"] === Just [ArgValue "10"]
   parse p "--repeat 10" === Right (SimpleAlternative3 10)
 
 -- * HELPERS

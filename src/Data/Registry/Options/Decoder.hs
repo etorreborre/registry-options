@@ -1,11 +1,27 @@
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module Data.Registry.Options.Decoder where
 
 import qualified Data.Text as T
 import Protolude
-import Data.Registry (fun)
+import Data.Registry (fun, funTo, ApplyVariadic)
 import Data.Registry.Internal.Types (Typed)
 
-newtype Decoder a = Decoder {decode :: Text -> Either Text a}
+newtype Decoder a =
+  Decoder {decode :: Text -> Either Text a}
+  deriving (Functor)
+
+instance Applicative Decoder where
+  pure a = Decoder (const (Right a))
+  Decoder f <*> Decoder fa = Decoder $ \t -> do
+    l <- f t
+    a <- fa t
+    pure (l a)
+
+-- | Create a Decoder a for a given constructor of type a
+decoderOf :: forall a b. (ApplyVariadic Decoder a b, Typeable a, Typeable b) => a -> Typed b
+decoderOf = funTo @Decoder
 
 addDecoder :: forall a. (Typeable a) => (Text -> Either Text a) -> Typed (Decoder a)
 addDecoder = fun . Decoder

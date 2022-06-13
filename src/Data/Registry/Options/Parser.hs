@@ -3,7 +3,7 @@
 
 module Data.Registry.Options.Parser where
 
-import Data.Registry (fun, funTo, ApplyVariadic)
+import Data.Registry (ApplyVariadic, fun, funTo)
 import Data.Registry.Internal.Types (Typed)
 import Data.Registry.Options.CliOption
 import Data.Registry.Options.Decoder
@@ -39,30 +39,34 @@ parser o = fun $ \d ->
   Parser $ \lexed -> do
     case getName o of
       Just n ->
-        case findOption o n lexed of
-          Nothing -> Left $ "no arguments to decode for " <> display o
-          Just [] -> case _defaultValue o of
-            Nothing ->
-              Left $ "missing default value for flag: " <> display o
-            Just def ->
-              Right def
-          Just ls -> decode d (unlexValues ls)
+        case findOptionValues n (_cardinality o) lexed of
+          Nothing ->
+            Left $ "no arguments to decode for " <> display o
+          Just [] ->
+            defaultReturn
+          Just ls ->
+            case _defaultValue o of
+              Just def ->
+                Right def
+              Nothing ->
+                decode d (unlexValues ls)
       Nothing -> do
         let args =
-              if any isDoubleDash lexed then drop 1 $ dropWhile (not . isDoubleDash) lexed else takeWhile isArgValue lexed
+              if any isDoubleDash lexed
+                then drop 1 $ dropWhile (not . isDoubleDash) lexed
+                else takeWhile isArgValue lexed
         case _cardinality o of
-          SomeCardinality i ->
-            decode d (unlexValues $ take i args)
-          ZeroOr i ->
+          Zero ->
+            defaultReturn
+          One ->
             case args of
               [] ->
-                case _defaultValue o of
-                  Just def -> pure def
-                  Nothing -> Left $ "missing value for argument " <> display o
-              as
-                | length as == i ->
-                  decode d (unlexValues as)
-              _ ->
-                Left $ "expected 0 or " <> show i <> " arguments. Got: " <> unlexValues args
-          ManyCardinality ->
+                Left $ "missing value for argument for: " <> display o
+              v:_ ->
+                decode d (unlexValues [v])
+          Many ->
             decode d (unlexValues args)
+  where
+    defaultReturn = case _defaultValue o of
+      Just def -> pure def
+      Nothing -> Left $ "missing value for argument for: " <> display o
