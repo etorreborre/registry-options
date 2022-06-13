@@ -2,7 +2,7 @@ module Test.Data.Registry.Options.CommandSpec where
 
 import Data.Registry
 import qualified Data.Text as T
-import Data.Registry.Options
+import Data.Registry.Options as D
 import Protolude hiding (Option, many, option, optional)
 import Test.Tasty.Hedgehogx hiding (defaultValue)
 
@@ -20,10 +20,10 @@ parsers =
     <: parser (name @Text "name")
     <: parser (switch 'f')
     <: parser (name @Int "number")
-    <: fun (maybeOf @Int)
-    <: fun intDecoder
-    <: fun boolDecoder
-    <: fun textDecoder
+    <: maybeOf @Int
+    <: addDecoder D.int
+    <: addDecoder D.bool
+    <: addDecoder D.text
 
 data Commands
   = Init InitCommand

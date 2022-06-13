@@ -2,20 +2,25 @@ module Data.Registry.Options.Decoder where
 
 import qualified Data.Text as T
 import Protolude
+import Data.Registry (fun)
+import Data.Registry.Internal.Types (Typed)
 
 newtype Decoder a = Decoder {decode :: Text -> Either Text a}
 
-intDecoder :: Decoder Int
-intDecoder = Decoder $ \t -> maybe (Left $ "cannot read as an Int: " <> t) Right (readMaybe t)
+addDecoder :: forall a. (Typeable a) => (Text -> Either Text a) -> Typed (Decoder a)
+addDecoder = fun . Decoder
 
-boolDecoder :: Decoder Bool
-boolDecoder = Decoder $ \t -> maybe (Left $ "cannot read as a Bool: " <> t) Right (readMaybe t)
+int :: Text -> Either Text Int
+int t = maybe (Left $ "cannot read as an Int: " <> t) Right (readMaybe t)
 
-textDecoder :: Decoder Text
-textDecoder = Decoder $ \t -> if T.null t then Left "empty text" else Right t
+bool :: Text -> Either Text Bool
+bool t = maybe (Left $ "cannot read as a Bool: " <> t) Right (readMaybe t)
 
-manyOf :: Decoder a -> Decoder [a]
-manyOf d = Decoder $ \t -> for (T.strip <$> T.splitOn " " t) (decode d)
+text :: Text -> Either Text Text
+text t = if T.null t then Left "empty text" else Right t
 
-maybeOf :: Decoder a -> Decoder (Maybe a)
-maybeOf d = Decoder $ \t -> either (const $ pure Nothing) (Right . Just) (decode d t)
+manyOf :: forall a . Typeable a => Typed (Decoder a -> Decoder [a])
+manyOf = fun $ \d -> Decoder $ \t -> for (T.strip <$> T.splitOn " " t) (decode d)
+
+maybeOf :: forall a . Typeable a => Typed (Decoder a -> Decoder (Maybe a))
+maybeOf = fun $ \d -> Decoder $ \t -> either (const $ pure Nothing) (Right . Just) (decode d t)

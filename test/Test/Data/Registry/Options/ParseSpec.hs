@@ -1,7 +1,7 @@
 module Test.Data.Registry.Options.ParseSpec where
 
 import Data.Registry
-import Data.Registry.Options
+import Data.Registry.Options as D
 import Protolude hiding (Option, many, option, optional)
 import Test.Tasty.Hedgehogx hiding (defaultValue)
 
@@ -77,15 +77,15 @@ parsers =
     <: parser (name @Text "hello")
     <: parser (switch 'q')
     <: parser (name @Int "repeat")
-    <: fun (maybeOf @Int)
-    <: fun (maybeOf @Bool)
-    <: fun (maybeOf @Text)
-    <: fun (manyOf @Int)
-    <: fun (manyOf @Bool)
-    <: fun (manyOf @Text)
-    <: fun intDecoder
-    <: fun boolDecoder
-    <: fun textDecoder
+    <: manyOf @Int
+    <: manyOf @Bool
+    <: manyOf @Text
+    <: maybeOf @Int
+    <: maybeOf @Bool
+    <: maybeOf @Text
+    <: addDecoder D.int
+    <: addDecoder D.bool
+    <: addDecoder D.text
 
 data Simple = Simple Text Bool Int
   deriving (Eq, Show)
