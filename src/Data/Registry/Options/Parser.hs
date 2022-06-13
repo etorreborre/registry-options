@@ -8,7 +8,6 @@ import Data.Registry.Internal.Types (Typed)
 import Data.Registry.Options.CliOption
 import Data.Registry.Options.Decoder
 import Data.Registry.Options.Lexing
-import qualified Data.Text as T
 import Protolude
 
 newtype Parser a = Parser {parseLexed :: [Lexed] -> Either Text a}
@@ -29,7 +28,7 @@ instance Alternative Parser where
       _ -> p2 lexed
 
 parse :: Parser a -> Text -> Either Text a
-parse p = parseLexed p . lex . fmap T.strip . T.splitOn " "
+parse p = parseLexed p . lexArgs
 
 parser :: forall a. (Typeable a) => CliOption a -> Typed (Decoder a -> Parser a)
 parser o = fun $ \d ->
@@ -45,7 +44,8 @@ parser o = fun $ \d ->
               Right def
           Just ls -> decode d (unlexValues ls)
       Nothing -> do
-        let args = takeWhile isArgValue lexed
+        let args =
+              if any isDoubleDash lexed then drop 1 $ dropWhile (not . isDoubleDash) lexed else takeWhile isArgValue lexed
         case _cardinality o of
           SomeCardinality i ->
             decode d (unlexValues $ take i args)

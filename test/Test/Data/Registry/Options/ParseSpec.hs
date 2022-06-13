@@ -31,6 +31,20 @@ test_parse_many_arguments = test "parse options and arguments with repeated valu
   let p = make @(Parser SimpleRepeated) parsers'
   parse p "eric etorreborre -q --repeat 10 12" === Right (SimpleRepeated ["eric", "etorreborre"] True [10, 12])
 
+test_parse_follow_arguments = test "all values after -- are considered as arguments" $ do
+  let parsers' =
+        funTo @Parser SimpleRepeated
+          <: parser (many (argument @Text "hello"))
+          <: parser (many (name @Int "repeat"))
+          <: parser (switch 'q')
+          <: parsers
+
+  let args = "-q --repeat 10 12 -- eric etorreborre"
+  lexArgs args === [FlagName "q", FlagName "repeat", ArgValue "10", ArgValue "12", DoubleDash, ArgValue "eric", ArgValue "etorreborre"]
+
+  let p = make @(Parser SimpleRepeated) parsers'
+  parse p args === Right (SimpleRepeated ["eric", "etorreborre"] True [10, 12])
+
 test_parse_optional = test "parse optional options and arguments" $ do
   let parsers' =
         funTo @Parser SimpleOptional

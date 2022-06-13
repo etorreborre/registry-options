@@ -91,7 +91,7 @@ data Name
 findOption :: CliOption a -> Name -> [Lexed] -> Maybe [Lexed]
 findOption _ _ [] = Nothing
 findOption o n ls = do
-  let args = dropWhile (not . sameName n) ls
+  let args = takeWhile (not . isDoubleDash) $ dropWhile (not . sameName n) ls
   case args of
     [] | hasZeroCardinality (_cardinality o) -> Just []
     [n']
