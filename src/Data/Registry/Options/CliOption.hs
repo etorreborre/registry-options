@@ -9,8 +9,8 @@ data CliOption a = CliOption
     _shortName :: Maybe Char,
     _metavar :: Maybe Text,
     _help :: Maybe Text,
-    _defaultValue :: Maybe a, -- when the flag is present but no values specified
-    _missingValue :: Maybe a, -- when the flag is missing
+    _activeValue :: Maybe a, -- when a flag is present
+    _defaultValue :: Maybe a, -- when a flag is missing
     _cardinality :: Cardinality
   }
   deriving (Eq, Show)
@@ -53,7 +53,7 @@ metavar :: Text -> CliOption a
 metavar t = option {_metavar = Just t}
 
 switch :: Char -> CliOption Bool
-switch c = option {_shortName = Just c, _defaultValue = Just True, _missingValue = Just False, _cardinality = Zero}
+switch c = option {_shortName = Just c, _activeValue = Just True, _defaultValue = Just False, _cardinality = Zero}
 
 name :: Text -> CliOption a
 name t = option {_name = Just t, _cardinality = One}
@@ -65,7 +65,7 @@ help :: Text -> CliOption a
 help t = option {_help = Just t}
 
 defaultValue :: a -> CliOption a
-defaultValue a = option {_defaultValue = Just a}
+defaultValue a = option {_activeValue = Just a}
 
 many :: CliOption a -> CliOption [a]
 many (CliOption n s m h d v _) = CliOption n s m h (pure <$> d) (pure <$> v) Many

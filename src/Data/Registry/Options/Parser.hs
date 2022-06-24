@@ -10,7 +10,9 @@ import Data.Registry.Options.Decoder
 import Data.Registry.Options.Lexing
 import Protolude
 
-newtype Parser a = Parser {parseLexed :: [Lexed] -> Either Text a}
+newtype Parser a = Parser
+  { parseLexed :: [Lexed] -> Either Text a
+  }
   deriving (Functor)
 
 instance Applicative Parser where
@@ -47,10 +49,9 @@ parseWith os d = do
           Nothing ->
             Left $ "no arguments to decode for " <> display o
           Just [] ->
-            if any (sameName n) lexed then
-              defaultReturn
-            else
-              missingReturn
+            if any (sameName n) lexed
+              then defaultReturn
+              else missingReturn
           Just ls ->
             decode d (unlexValues ls)
       -- arguments
@@ -66,16 +67,16 @@ parseWith os d = do
             case args of
               [] ->
                 Left $ "missing value for argument for: " <> display o
-              v:_ ->
+              v : _ ->
                 decode d (unlexValues [v])
           Many ->
             decode d (unlexValues args)
   where
     o = mconcat os
-    defaultReturn = case _defaultValue o of
+    defaultReturn = case _activeValue o of
       Just def -> pure def
       Nothing -> Left $ "missing default value for argument for: " <> display o
-    missingReturn = case _missingValue o of
+    missingReturn = case _defaultValue o of
       Just def -> pure def
       Nothing -> Left $ "missing value for argument for: " <> display o
 
