@@ -17,15 +17,15 @@ test_simple_parser = test "simple parser" $ do
   parse p "-q --hello eric --repeat 10" === Right (Simple "eric" True 10)
 
 test_parse_argument = test "parse options and arguments" $ do
-  let p = make @(Parser Simple) (parser (argument @Text "hello") <: simpleParser)
+  let p = make @(Parser Simple) (parser [argument @Text "hello"] <: simpleParser)
   parse p "eric -q --repeat 10" === Right (Simple "eric" True 10)
 
 test_parse_many_arguments = test "parse options and arguments with repeated values" $ do
   let parsers' =
         parserOf SimpleRepeated
-          <: parser (many (argument @Text "hello"))
-          <: parser (many (name @Int "repeat"))
-          <: parser (switch 'q')
+          <: parser [many (argument @Text "hello")]
+          <: parser [many (name @Int "repeat")]
+          <: parser [switch 'q']
           <: optionParsers
 
   let p = make @(Parser SimpleRepeated) parsers'
@@ -34,9 +34,9 @@ test_parse_many_arguments = test "parse options and arguments with repeated valu
 test_parse_follow_arguments = test "all values after -- are considered as arguments" $ do
   let parsers' =
         parserOf SimpleRepeated
-          <: parser (many (argument @Text "hello"))
-          <: parser (many (name @Int "repeat"))
-          <: parser (switch 'q')
+          <: parser [many (argument @Text "hello")]
+          <: parser [many (name @Int "repeat")]
+          <: parser [switch 'q']
           <: optionParsers
 
   let args = "-q --repeat 10 12 -- eric etorreborre"
@@ -48,9 +48,9 @@ test_parse_follow_arguments = test "all values after -- are considered as argume
 test_parse_optional = test "parse optional options and arguments" $ do
   let parsers' =
         parserOf SimpleOptional
-          <: parser (optional (argument @Text "hello"))
-          <: parser (optional (switch 'q'))
-          <: parser (optional (name @Int "repeat"))
+          <: parser [optional (argument @Text "hello")]
+          <: parser [optional (switch 'q')]
+          <: parser [optional (name @Int "repeat")]
           <: optionParsers
 
   let p = make @(Parser SimpleOptional) parsers'
@@ -59,9 +59,9 @@ test_parse_optional = test "parse optional options and arguments" $ do
 test_parse_alternatives = test "parse alternative options and arguments" $ do
   let parsers' =
         fun simpleAlternative
-          <: parser (argument @Text "hello")
-          <: parser (one (switch 'q' <> name "quiet"))
-          <: parser (name @Int "repeat")
+          <: parser [argument @Text "hello"]
+          <: parser [one (switch 'q' <> name "quiet")]
+          <: parser [name @Int "repeat"]
           <: optionParsers
 
   let p = make @(Parser SimpleAlternative) parsers'
@@ -78,9 +78,9 @@ simpleParser =
   parserOf Simple <: optionParsers
 
 optionParsers =
-  parser (name @Text "hello")
-    <: parser (switch 'q')
-    <: parser (name @Int "repeat")
+  parser [name @Text "hello"]
+    <: parser [switch 'q']
+    <: parser [name @Int "repeat"]
     <: decoders
 
 decoders =

@@ -59,20 +59,20 @@ data RmCommand = RmCommand
 addCommand :: Decoder Bool -> Decoder [File] -> Parser AddCommand
 addCommand boolDecoder filesDecoder =
   AddCommand
-    <$> parseWith (switch 'f' <> name "force") boolDecoder
-    <*> parseWith (switch 'i' <> name "interactive") boolDecoder
-    <*> parseWith (switch 'p' <> name "patch") boolDecoder
-    <*> parseWith (switch 'e' <> name "edit") boolDecoder
-    <*> parseWith (many (argument @File "paths")) filesDecoder
+    <$> parseWith [switch 'f', name "force"] boolDecoder
+    <*> parseWith [switch 'i', name "interactive"] boolDecoder
+    <*> parseWith [switch 'p', name "patch"] boolDecoder
+    <*> parseWith [switch 'e', name "edit"] boolDecoder
+    <*> parseWith [many (argument @File "paths")] filesDecoder
 
 rmCommand :: Decoder Bool -> Decoder [File] -> Parser RmCommand
 rmCommand boolDecoder filesDecoder =
   RmCommand
-    <$> parseWith (switch 'f' <> name "force") boolDecoder
-    <*> parseWith (switch 'd' <> name "dry") boolDecoder
-    <*> parseWith (switch 'r' <> name "recurse") boolDecoder
-    <*> parseWith (switch 'c' <> name "cached") boolDecoder
-    <*> parseWith (many (argument @File "paths")) filesDecoder
+    <$> parseWith [switch 'f', name "force"] boolDecoder
+    <*> parseWith [switch 'd', name "dry"] boolDecoder
+    <*> parseWith [switch 'r', name "recurse"] boolDecoder
+    <*> parseWith [switch 'c', name "cached"] boolDecoder
+    <*> parseWith [many (argument @File "paths")] filesDecoder
 
 commands :: Text -> Text -> Parser AddCommand -> Parser RmCommand -> Parser GitCommand
 commands p1Name p2Name p1 p2 =

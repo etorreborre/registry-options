@@ -19,14 +19,14 @@ parsers =
     <: optionsParsers
 
 optionsParsers =
-     parser (name @Text "name")
-    <: parser (switch 'f')
-    <: parser (name @Int "number")
+  parser [name @Text "name"]
+    <: parser [switch 'f']
+    <: parser [name @Int "number"]
     <: maybeOf @Int
     <: decoders
 
 decoders =
-     addDecoder D.int
+  addDecoder D.int
     <: addDecoder D.bool
     <: addDecoder D.text
 

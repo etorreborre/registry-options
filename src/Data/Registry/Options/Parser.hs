@@ -34,11 +34,11 @@ parse p = parseLexed p . lexArgs
 parserOf :: forall a b. (ApplyVariadic Parser a b, Typeable a, Typeable b) => a -> Typed b
 parserOf = funTo @Parser
 
-parser :: forall a. (Typeable a) => CliOption a -> Typed (Decoder a -> Parser a)
+parser :: forall a. (Typeable a) => [CliOption a] -> Typed (Decoder a -> Parser a)
 parser o = fun $ parseWith o
 
-parseWith :: forall a. (Typeable a) => CliOption a -> Decoder a -> Parser a
-parseWith o d =
+parseWith :: forall a. (Typeable a) => [CliOption a] -> Decoder a -> Parser a
+parseWith os d = do
   Parser $ \lexed -> do
     case getName o of
       -- named option or switch
@@ -71,6 +71,7 @@ parseWith o d =
           Many ->
             decode d (unlexValues args)
   where
+    o = mconcat os
     defaultReturn = case _defaultValue o of
       Just def -> pure def
       Nothing -> Left $ "missing default value for argument for: " <> display o
