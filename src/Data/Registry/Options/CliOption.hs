@@ -43,29 +43,38 @@ hasZeroCardinality :: Cardinality -> Bool
 hasZeroCardinality Zero = True
 hasZeroCardinality _ = False
 
+switch :: CliOption Bool
+switch = mempty {_activeValue = Just True, _defaultValue = Just False, _cardinality = Zero}
+
+flag :: a -> CliOption a
+flag a = mempty {_activeValue = Just a, _cardinality = Zero}
+
 option :: CliOption a
 option = mempty
 
-argument :: Text -> CliOption a
-argument = metavar
+argument :: CliOption a
+argument = metavar "argument"
 
 metavar :: Text -> CliOption a
-metavar t = option {_metavar = Just t}
-
-switch :: Char -> CliOption Bool
-switch c = option {_shortName = Just c, _activeValue = Just True, _defaultValue = Just False, _cardinality = Zero}
+metavar t = mempty {_metavar = Just t}
 
 name :: Text -> CliOption a
-name t = option {_name = Just t, _cardinality = One}
+name t = mempty {_name = Just t, _cardinality = One}
 
-shortName :: Char -> CliOption a
-shortName t = option {_shortName = Just t}
+text :: CliOption Text
+text = mempty {_cardinality = One}
+
+int :: CliOption Int
+int = mempty {_cardinality = One}
+
+short :: Char -> CliOption a
+short t = mempty {_shortName = Just t}
 
 help :: Text -> CliOption a
-help t = option {_help = Just t}
+help t = mempty {_help = Just t}
 
 defaultValue :: a -> CliOption a
-defaultValue a = option {_activeValue = Just a}
+defaultValue a = mempty {_activeValue = Just a}
 
 many :: CliOption a -> CliOption [a]
 many (CliOption n s m h d v _) = CliOption n s m h (pure <$> d) (pure <$> v) Many

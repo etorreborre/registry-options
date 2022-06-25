@@ -27,6 +27,7 @@ library
       Data.Registry.Options.Decoder
       Data.Registry.Options.Lexing
       Data.Registry.Options.Parser
+      Data.Registry.Options.TH
   other-modules:
       Paths_registry_options
   hs-source-dirs:
@@ -83,6 +84,8 @@ test-suite spec
       Test.Data.Registry.Options.CommandSpec
       Test.Data.Registry.Options.GitSpec
       Test.Data.Registry.Options.ParseSpec
+      Test.Data.Registry.Options.TemplateHaskellSpec
+      Test.Data.Registry.Options.TemplateHaskellTypes
       Paths_registry_options
   hs-source-dirs:
       test
