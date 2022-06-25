@@ -13,14 +13,12 @@ import Test.Tasty.Hedgehogx hiding (defaultValue, int, text)
 test_newtype_without_field = test "make a parser for a newtype without a named field" $ do
   let _r =
         $(makeParser ''NewtypeWithoutField)
-          <: parser @"Top" [text]
           <: decoders
   success
 
 test_newtype_with_field = test "make a parser for a newtype with a named field" $ do
   let _r =
         $(makeParser ''NewtypeWithField)
-          <: parser @"newtypeWithField" [text]
           <: decoders
   success
 

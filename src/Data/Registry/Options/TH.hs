@@ -6,33 +6,47 @@ import qualified Data.Text as T
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 import Protolude hiding (Type)
+import qualified Prelude
 
 -- | Make a Parser
 --   Usage: $(makeParser ''MyDataType <: otherParsers)
 makeParser :: Name -> ExpQ
-makeParser typeName = appE (varE $ mkName "fun") $ do
+makeParser typeName = do
   info <- reify typeName
   case info of
     TyConI (NewtypeD _context _name _typeVars _kind (NormalC constructor [(_, fieldType)]) _deriving) -> do
       -- \(p::Parser "Top" OldType) -> fmap NewType p
       let cName = mkName $ show constructor
-      lamE [sigP (varP $ mkName "p") (conT (mkName "Parser") `appT` litT (strTyLit "Top") `appT` pure fieldType)] (appE (appE (varE $ mkName "fmap") (conE cName)) (varE $ mkName "p"))
+      let parser = lamE [sigP (varP $ mkName "p") (conT (mkName "Parser") `appT` litT (strTyLit "Top") `appT` pure fieldType)] (appE (appE (varE $ mkName "fmap") (conE cName)) (varE $ mkName "p"))
+      let fieldParser = appTypeE (varE $ mkName "parser") (litT (strTyLit "Top")) `appE` listE [makeArgument fieldType]
+      assembleParsersToRegistry [funOf parser, fieldParser]
     TyConI (NewtypeD _context _name _typeVars _kind (RecC constructor [(fieldName, _, fieldType)]) _deriving) -> do
       -- \(p::Parser fieldName OldType) -> fmap NewType p
       let cName = mkName $ show constructor
-      lamE [sigP (varP $ mkName "p") (conT (mkName "Parser") `appT` litT (strTyLit $ toS $ dropQualifier $ show fieldName) `appT` pure fieldType)] (appE (appE (varE $ mkName "fmap") (conE cName)) (varE $ mkName "p"))
+      let singletonType = litT (strTyLit $ toS $ dropQualifier $ show fieldName)
+      let parser = lamE [sigP (varP $ mkName "p") (conT (mkName "Parser") `appT` singletonType `appT` pure fieldType)] (appE (appE (varE $ mkName "fmap") (conE cName)) (varE $ mkName "p"))
+      let fieldParser = appTypeE (varE $ mkName "parser") singletonType `appE` listE [makeOption fieldName fieldType]
+      assembleParsersToRegistry [funOf parser, fieldParser]
     TyConI (DataD _context _name _typeVars _kind constructors _deriving) -> do
       case constructors of
         [c] ->
-          makeConstructorParser typeName c
+          assembleParsersToRegistry [funOf $ makeConstructorParser typeName c]
         c : cs -> do
-          makeConstructorsParser typeName (c : cs)
+          assembleParsersToRegistry [funOf $ makeConstructorsParser typeName (c : cs)]
         [] -> do
           qReport True "can not make a Parser for an empty data type"
           fail "parser creation failed"
     other -> do
       qReport True ("cannot create a parser for: " <> show other)
       fail "parser creation failed"
+
+assembleParsersToRegistry :: [ExpQ] -> ExpQ
+assembleParsersToRegistry [] = fail "parsers creation failed"
+assembleParsersToRegistry [g] = g
+assembleParsersToRegistry (g : gs) = (appOf "<+") g (assembleParsersToRegistry gs)
+
+funOf :: ExpQ -> ExpQ
+funOf = appE (varE (mkName "fun"))
 
 -- | Make a Parser for a single Constructor, where each field of the constructor is parsed separately
 --   \(p0::Parser fieldName0 Text) (p1::Parser fieldName1 Bool) -> Constructor <$> coerceParser p0 <*> coerceParser p1
@@ -118,3 +132,20 @@ indexConstructorTypes allFields constructorFields =
     case elemIndex f allFields of
       Just n -> pure n
       Nothing -> fail $ "the field " <> show f <> " cannot be found in the list of all the fields " <> show allFields
+
+makeArgument :: Type -> ExpQ
+makeArgument fieldType = varE (mkName "argument") `appTypeE` pure fieldType
+
+makeOption :: Name -> Type -> ExpQ
+makeOption fieldName fieldType = do
+  let unqualified = toS . dropQualifier . show $ fieldName
+  let append = appOf "<>"
+  (varE (mkName "option") `appTypeE` pure fieldType) `append`
+    (varE (mkName "name") `appE` (litE .stringL $ unqualified)) `append`
+    (varE (mkName "short") `appE` (litE . charL . toLower. Prelude.head $ unqualified))
+
+app :: ExpQ -> ExpQ -> ExpQ
+app = appOf "<+"
+
+appOf :: Text -> ExpQ -> ExpQ -> ExpQ
+appOf operator e1 e2 = infixE (Just e1) (varE (mkName $ toS operator)) (Just e2)
