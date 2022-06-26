@@ -33,11 +33,11 @@ makeParser typeName = do
           fs <- fieldsOf c
           addToRegistry $ [funOf $ makeConstructorParser typeName c] <> (uncurry makeFieldParser <$> fs)
         c : cs -> do
-          fs <- for (c:cs) fieldsOf
+          fs <- for (c : cs) fieldsOf
           addToRegistry $ [funOf $ makeConstructorsParser typeName (c : cs)] <> (uncurry makeFieldParser <$> concat fs)
         [] -> do
-          qReport True "can not make a Parser for an empty data type"
-          fail "parser creation failed"
+          qReport True "can not make a Parser for a data type with no constructors"
+          fail "parser creation failed: cannot create a parser for a data type with no constructors"
     other -> do
       qReport True ("cannot create a parser for: " <> show other)
       fail "parser creation failed"
@@ -148,9 +148,13 @@ makeOption :: Name -> Type -> ExpQ
 makeOption fieldName fieldType = do
   let unqualified = toS . dropQualifier . show $ fieldName
   let append = appOf "<>"
-  (varE (mkName "option") `appTypeE` pure fieldType) `append`
-    (varE (mkName "name") `appE` (litE .stringL $ unqualified)) `append`
-    (varE (mkName "short") `appE` (litE . charL . toLower. Prelude.head $ unqualified))
+  (if isBoolType fieldType then varE (mkName "switch") else varE (mkName "option") `appTypeE` pure fieldType)
+    `append` (varE (mkName "name") `appE` (litE . stringL $ unqualified))
+    `append` (varE (mkName "short") `appE` (litE . charL . toLower . Prelude.head $ unqualified))
+
+isBoolType :: Type -> Bool
+isBoolType (ConT t) = show t == ("GHC.Types.Bool" :: Text)
+isBoolType _ = False
 
 app :: ExpQ -> ExpQ -> ExpQ
 app = appOf "<+"
