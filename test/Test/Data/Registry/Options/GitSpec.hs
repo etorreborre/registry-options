@@ -58,7 +58,7 @@ module Test.Data.Registry.Options.GitSpec where
 --   }
 --   deriving (Eq, Show)
 
--- addCommand :: Decoder Bool -> Decoder [File] -> Parser "Top" AddCommand
+-- addCommand :: Decoder Bool -> Decoder [File] -> Parser "Anonymous" AddCommand
 -- addCommand boolDecoder filesDecoder =
 --   AddCommand
 --     <$> parseWith [switch 'f', name "force"] boolDecoder
@@ -67,7 +67,7 @@ module Test.Data.Registry.Options.GitSpec where
 --     <*> parseWith [switch 'e', name "edit"] boolDecoder
 --     <*> parseWith [many (argument @File "paths")] filesDecoder
 
--- rmCommand :: Decoder Bool -> Decoder [File] -> Parser "Top" RmCommand
+-- rmCommand :: Decoder Bool -> Decoder [File] -> Parser "Anonymous" RmCommand
 -- rmCommand boolDecoder filesDecoder =
 --   RmCommand
 --     <$> coerce (parseWith @"force" [switch, name "force"] boolDecoder)
@@ -76,7 +76,7 @@ module Test.Data.Registry.Options.GitSpec where
 --     <*> coerce (parseWith @"cached" [switch, name "cached"] boolDecoder)
 --     <*> coerce (parseWith @"paths" [many (argument @File "paths")] filesDecoder)
 
--- commands :: Text -> Text -> Parser "Top" AddCommand -> Parser "Top" RmCommand -> Parser "Top" GitCommand
+-- commands :: Text -> Text -> Parser "Anonymous" AddCommand -> Parser "Anonymous" RmCommand -> Parser "Anonymous" GitCommand
 -- commands p1Name p2Name p1 p2 =
 --   command p1Name Add p1
 --     <|> command p2Name Rm p2

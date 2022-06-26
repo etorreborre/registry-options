@@ -21,15 +21,15 @@ test_simple_parser = test "simple parser" $ do
   parse p "-q --hello eric --repeat 10" === Right (Simple "eric" True 10)
 
 test_parse_argument = test "parse options and arguments" $ do
-  let p = makeParser @Simple (parser @"hello" @Text [argument] <: simpleParser)
+  let p = makeParser @Simple (field @"hello" @Text [argument] <: simpleParser)
   parse p "eric -q --repeat 10" === Right (Simple "eric" True 10)
 
 test_parse_many_arguments = test "parse options and arguments with repeated values" $ do
   let parsers' =
         fun simpleRepeated
-          <: parser @"hello" @[Text] [many argument]
-          <: parser @"nb" @[Int] [many int]
-          <: parser @"quiet" @Bool [switch]
+          <: field @"hello" @[Text] [many argument]
+          <: field @"nb" @[Int] [many int]
+          <: field @"quiet" @Bool [switch]
           <: optionParsers
 
   let p = makeParser @SimpleRepeated parsers'
@@ -38,9 +38,9 @@ test_parse_many_arguments = test "parse options and arguments with repeated valu
 test_parse_follow_arguments = test "all values after -- are considered as arguments" $ do
   let parsers' =
         fun simpleRepeated
-          <: parser @"hello" @[Text] [many argument]
-          <: parser @"nb" @[Int] [many int]
-          <: parser @"quiet" @Bool [switch]
+          <: field @"hello" @[Text] [many argument]
+          <: field @"nb" @[Int] [many int]
+          <: field @"quiet" @Bool [switch]
           <: optionParsers
 
   let args = "-q --repeat 10 12 -- eric etorreborre"
@@ -52,9 +52,9 @@ test_parse_follow_arguments = test "all values after -- are considered as argume
 test_parse_optional = test "parse optional options and arguments" $ do
   let parsers' =
         parserOf SimpleOptional
-          <: parser @Top @(Maybe Text) []
-          <: parser @Top @(Maybe Bool) []
-          <: parser @Top @(Maybe Int) []
+          <: anonymous @(Maybe Text) []
+          <: anonymous @(Maybe Bool) []
+          <: anonymous @(Maybe Int) []
           <: optionParsers
 
   let p = makeParser @SimpleOptional parsers'
@@ -63,9 +63,9 @@ test_parse_optional = test "parse optional options and arguments" $ do
 test_parse_alternatives = test "parse alternative options and arguments" $ do
   let parsers' =
         fun simpleAlternative
-          <: parser @Top @Text [argument]
-          <: parser @Top @Bool [switch]
-          <: parser @Top @Int []
+          <: anonymous @Text [argument]
+          <: anonymous @Bool [switch]
+          <: anonymous @Int []
           <: optionParsers
 
   let p = makeParser @SimpleAlternative parsers'
@@ -78,23 +78,23 @@ test_parse_alternatives = test "parse alternative options and arguments" $ do
 
 -- * HELPERS
 
-makeParser :: forall a. (Typeable a) => Registry _ _ -> Parser Top a
-makeParser = make @(Parser Top a)
+makeParser :: forall a. (Typeable a) => Registry _ _ -> Parser Anonymous a
+makeParser = make @(Parser Anonymous a)
 
 simpleParser =
   fun simple
     <: optionParsers
 
-simpleRepeated :: Parser "hello" [Text] -> Parser "quiet" Bool -> Parser "nb" [Int] -> Parser "Top" SimpleRepeated
+simpleRepeated :: Parser "hello" [Text] -> Parser "quiet" Bool -> Parser "nb" [Int] -> Parser "Anonymous" SimpleRepeated
 simpleRepeated p1 p2 p3 = SimpleRepeated <$> coerce p1 <*> coerce p2 <*> coerce p3
 
-simple :: Parser "hello" Text -> Parser "quiet" Bool -> Parser "nb" Int -> Parser "Top" Simple
+simple :: Parser "hello" Text -> Parser "quiet" Bool -> Parser "nb" Int -> Parser "Anonymous" Simple
 simple p1 p2 p3 = Simple <$> coerce p1 <*> coerce p2 <*> coerce p3
 
 optionParsers =
-  parser @"hello" @Text [text]
-    <: parser @"nb" @Int [int]
-    <: parser @"quiet" @Bool [switch]
+  field @"hello" @Text [text]
+    <: field @"nb" @Int [int]
+    <: field @"quiet" @Bool [switch]
     <: fun defaultValues
     <: decoders
 
@@ -124,5 +124,5 @@ data SimpleAlternative
   | SimpleAlternative3 Int
   deriving (Eq, Show)
 
-simpleAlternative :: Parser Top Bool -> Parser Top Text -> Parser Top Int -> Parser Top SimpleAlternative
+simpleAlternative :: Parser Anonymous Bool -> Parser Anonymous Text -> Parser Anonymous Int -> Parser Anonymous SimpleAlternative
 simpleAlternative p1 p2 p3 = (SimpleAlternative1 <$> p1) <|> (SimpleAlternative2 <$> p2) <|> (SimpleAlternative3 <$> p3)

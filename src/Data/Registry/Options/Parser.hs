@@ -12,10 +12,11 @@ import Data.Registry.Options.CliOption
 import Data.Registry.Options.Decoder
 import Data.Registry.Options.DefaultValues
 import Data.Registry.Options.Lexing
+import Data.Registry.Options.TH
 import GHC.TypeLits
-import Protolude
+import Protolude hiding (option)
 
-type Top = "Top"
+type Anonymous = "Anonymous"
 
 newtype Parser (s :: Symbol) a = Parser
   { parseLexed :: [Lexed] -> Either Text a
@@ -42,18 +43,32 @@ instance Alternative (Parser s) where
       Right a -> Right a
       _ -> p2 lexed
 
-coerceParser :: Parser s a -> Parser "Top" a
+coerceParser :: Parser s a -> Parser Anonymous a
 coerceParser = coerce
 
 parse :: Parser s a -> Text -> Either Text a
 parse p = parseLexed p . lexArgs
 
 -- | Create a Parser a for a given constructor of type a
-parserOf :: forall a b. (ApplyVariadic (Parser Top) a b, Typeable a, Typeable b) => a -> Typed b
-parserOf = funTo @(Parser Top)
+parserOf :: forall a b. (ApplyVariadic (Parser Anonymous) a b, Typeable a, Typeable b) => a -> Typed b
+parserOf = funTo @(Parser Anonymous)
 
-parser :: forall s a. (KnownSymbol s, Typeable a) => [CliOption] -> Typed (DefaultValues -> Decoder a -> Parser s a)
-parser o = fun $ parseWith @s @a o
+field :: forall s a. (KnownSymbol s, Typeable a) => [CliOption] -> Typed (DefaultValues -> Decoder a -> Parser s a)
+field o = fun $ parseWith @s @a o
+
+anonymous :: forall a. (Typeable a) => [CliOption] -> Typed (DefaultValues -> Decoder a -> Parser Anonymous a)
+anonymous o = fun $ parseWith @Anonymous @a o
+
+parseField :: forall s a. (KnownSymbol s, Typeable a) => FieldOptions -> Maybe Text -> Text -> DefaultValues -> Decoder a -> Parser s a
+parseField parserOptions Nothing fieldType =
+  parseWith [argument, metavar $ makeMetavar parserOptions fieldType]
+parseField parserOptions (Just fieldName) fieldType = do
+  let shortName = makeShortName parserOptions fieldName
+  let longName = toS $ makeLongName parserOptions fieldName
+  parseWith [if isBool fieldType then switch else option, name longName, short shortName]
+
+isBool :: Text -> Bool
+isBool t = t == ("GHC.Types.Bool" :: Text)
 
 parseWith :: forall s a. (KnownSymbol s, Typeable a) => [CliOption] -> DefaultValues -> Decoder a -> Parser s a
 parseWith os defaults d =

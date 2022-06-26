@@ -19,9 +19,9 @@ module Test.Data.Registry.Options.CommandSpec where
 --     <: optionsParsers
 
 -- optionsParsers =
---   parser [name @Text "name"]
---     <: parser [switch 'f']
---     <: parser [name @Int "number"]
+--   field [name @Text "name"]
+--     <: field [switch 'f']
+--     <: field [name @Int "number"]
 --     <: maybeOf @Int
 --     <: decoders
 

@@ -42,4 +42,4 @@ decoders =
     <: addDecoder D.intDecoder
     <: addDecoder D.boolDecoder
     <: addDecoder D.textDecoder
-    <: fun defaultParserOptions
+    <: fun defaultFieldOptions
