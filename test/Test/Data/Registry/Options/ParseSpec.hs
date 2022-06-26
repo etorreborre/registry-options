@@ -107,7 +107,6 @@ decoders =
     <: addDecoder D.intDecoder
     <: addDecoder D.boolDecoder
     <: addDecoder D.textDecoder
-    <: fun defaultParserOptions
 
 data Simple = Simple Text Bool Int
   deriving (Eq, Show)

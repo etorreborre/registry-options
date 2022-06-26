@@ -38,16 +38,8 @@ instance Alternative (Parser s) where
       Right a -> Right a
       _ -> p2 lexed
 
-data ParserOptions = ParserOptions
-  { makeShortName :: Text -> Text,
-    makeLongName :: Text -> Text
-  }
-
 coerceParser :: Parser s a -> Parser "Top" a
 coerceParser = coerce
-
-defaultParserOptions :: ParserOptions
-defaultParserOptions = ParserOptions identity identity
 
 parse :: Parser s a -> Text -> Either Text a
 parse p = parseLexed p . lexArgs
@@ -56,12 +48,11 @@ parse p = parseLexed p . lexArgs
 parserOf :: forall s a b. (KnownSymbol s, ApplyVariadic (Parser s) a b, Typeable a, Typeable b) => a -> Typed b
 parserOf = funTo @(Parser s)
 
-parser :: forall s a. (KnownSymbol s, Typeable a) => [CliOption a] -> Typed (ParserOptions -> Decoder a -> Parser s a)
+parser :: forall s a. (KnownSymbol s, Typeable a) => [CliOption a] -> Typed (Decoder a -> Parser s a)
 parser o = fun $ parseWith @s @a o
 
-parseWith :: forall s a. (KnownSymbol s, Typeable a) => [CliOption a] -> ParserOptions -> Decoder a -> Parser s a
-parseWith os _pos d = do
-  let _fieldName = toS (symbolVal $ Proxy @s) :: Text
+parseWith :: forall s a. (KnownSymbol s, Typeable a) => [CliOption a] -> Decoder a -> Parser s a
+parseWith os d =
   Parser $ \lexed -> do
     case getName o of
       -- named option or switch

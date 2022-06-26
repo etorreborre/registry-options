@@ -2,6 +2,7 @@ module Data.Registry.Options.TH where
 
 import Control.Monad.Fail
 import Data.List (elemIndex)
+import Data.String
 import qualified Data.Text as T
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
@@ -11,30 +12,42 @@ import qualified Prelude
 -- | Make a Parser
 --   Usage: $(makeParser ''MyDataType <: otherParsers)
 makeParser :: Name -> ExpQ
-makeParser typeName = do
+makeParser = makeParserWith defaultParserOptions
+
+data ParserOptions = ParserOptions
+  { makeShortName :: Text -> Char,
+    makeLongName :: Text -> Text
+  }
+
+defaultParserOptions :: ParserOptions
+defaultParserOptions =
+  ParserOptions (Prelude.head . toS . dropQualifier) (hyphenate . dropQualifier)
+
+makeParserWith :: ParserOptions -> Name -> ExpQ
+makeParserWith parserOptions typeName = do
   info <- reify typeName
   case info of
     TyConI (NewtypeD _context _name _typeVars _kind (NormalC constructor [(_, fieldType)]) _deriving) -> do
       -- \(p::Parser "Top" OldType) -> fmap NewType p
       let cName = mkName $ show constructor
-      let parser = lamE [sigP (varP $ mkName "p") (conT (mkName "Parser") `appT` litT (strTyLit "Top") `appT` pure fieldType)] (appE (appE (varE $ mkName "fmap") (conE cName)) (varE $ mkName "p"))
-      let fieldParser = makeFieldParser Nothing fieldType
+      let parser = lamE [sigP (varP "p") (conT "Parser" `appT` litT (strTyLit "Top") `appT` pure fieldType)] (appE (appE (varE "fmap") (conE cName)) (varE "p"))
+      let fieldParser = makeFieldParser parserOptions Nothing fieldType
       addToRegistry [funOf parser, fieldParser]
     TyConI (NewtypeD _context _name _typeVars _kind (RecC constructor [(fieldName, _, fieldType)]) _deriving) -> do
       -- \(p::Parser fieldName OldType) -> fmap NewType p
       let cName = mkName $ show constructor
       let singletonType = litT (strTyLit $ toS $ dropQualifier $ show fieldName)
-      let parser = lamE [sigP (varP $ mkName "p") (conT (mkName "Parser") `appT` singletonType `appT` pure fieldType)] (appE (appE (varE $ mkName "fmap") (conE cName)) (varE $ mkName "p"))
-      let fieldParser = makeFieldParser (Just fieldName) fieldType
+      let parser = lamE [sigP (varP "p") (conT "Parser" `appT` singletonType `appT` pure fieldType)] (appE (appE (varE "fmap") (conE cName)) (varE "p"))
+      let fieldParser = makeFieldParser parserOptions (Just fieldName) fieldType
       addToRegistry [funOf parser, fieldParser]
     TyConI (DataD _context _name _typeVars _kind constructors _deriving) -> do
       case constructors of
         [c] -> do
           fs <- fieldsOf c
-          addToRegistry $ [funOf $ makeConstructorParser typeName c] <> (uncurry makeFieldParser <$> fs)
+          addToRegistry $ [funOf $ makeConstructorParser typeName c] <> (uncurry (makeFieldParser parserOptions) <$> fs)
         c : cs -> do
           fs <- for (c : cs) fieldsOf
-          addToRegistry $ [funOf $ makeConstructorsParser typeName (c : cs)] <> (uncurry makeFieldParser <$> concat fs)
+          addToRegistry $ [funOf $ makeConstructorsParser typeName (c : cs)] <> (uncurry (makeFieldParser parserOptions) <$> concat fs)
         [] -> do
           qReport True "can not make a Parser for a data type with no constructors"
           fail "parser creation failed: cannot create a parser for a data type with no constructors"
@@ -51,7 +64,7 @@ funOf :: ExpQ -> ExpQ
 funOf = appE (varE (mkName "fun"))
 
 -- | Make a Parser for a single Constructor, where each field of the constructor is parsed separately
---   \(p0::Parser fieldName0 Text) (p1::Parser fieldName1 Bool) -> Constructor <$> coerceParser p0 <*> coerceParser p1
+--   \(os: ParserOptions) (p0::Parser fieldName0 Text) (p1::Parser fieldName1 Bool) -> Constructor <$> coerceParser p0 <*> coerceParser p1
 makeConstructorParser :: Name -> Con -> ExpQ
 makeConstructorParser typeName c = do
   fs <- fieldsOf c
@@ -59,14 +72,14 @@ makeConstructorParser typeName c = do
   let parserParameters =
         ( \((mFieldName, t), n) -> do
             let singletonType = litT . strTyLit $ maybe "Top" (toS . dropQualifier . show) mFieldName
-            sigP (varP (mkName $ "p" <> show n)) (conT (mkName "Parser") `appT` singletonType `appT` pure t)
+            sigP (varP (mkName $ "p" <> show n)) (conT "Parser" `appT` singletonType `appT` pure t)
         )
           <$> zip fs [0 ..]
-  lamE parserParameters (sigE (applyParser cName [0 .. (length fs - 1)]) (conT (mkName "Parser") `appT` (litT . strTyLit $ "Top") `appT` conT typeName))
+  lamE parserParameters (sigE (applyParser cName [0 .. (length fs - 1)]) (conT "Parser" `appT` (litT . strTyLit $ "Top") `appT` conT typeName))
 
 -- | Make a Parser for a several Constructors, where each field of each the constructor is parsed separately
 --   and an alternative is taken between all the parsers
---   \(p0::Parser fieldName1 Text) (p1::Parser fieldName1 Bool) (p2::Parser fieldName2 Bool) ->
+--   \(os: ParserOptions) (p0::Parser fieldName1 Text) (p1::Parser fieldName1 Bool) (p2::Parser fieldName2 Bool) ->
 --      (Constructor1 <$> coerceParser p0 <*> coerceParser p1) <|>  (Constructor2 <$> coerceParser p1 <*> coerceParser p3)
 makeConstructorsParser :: Name -> [Con] -> ExpQ
 makeConstructorsParser typeName cs = do
@@ -76,7 +89,7 @@ makeConstructorsParser typeName cs = do
   let parserParameters =
         ( \((mFieldName, t), n) -> do
             let singletonType = litT . strTyLit $ maybe "Top" (toS . dropQualifier . show) mFieldName
-            sigP (varP (mkName $ "p" <> show n)) (conT (mkName "Parser") `appT` singletonType `appT` pure t)
+            sigP (varP (mkName $ "p" <> show n)) (conT "Parser" `appT` singletonType `appT` pure t)
         )
           <$> zip fs [0 ..]
   let appliedParsers =
@@ -87,17 +100,17 @@ makeConstructorsParser typeName cs = do
             applyParser cName constructorTypes
         )
           <$> cs
-  let parserAlternatives = foldr (\p r -> varE (mkName "<|>") `appE` p `appE` r) (varE $ mkName "empty") appliedParsers
-  lamE parserParameters (sigE parserAlternatives (conT (mkName "Parser") `appT` (litT . strTyLit $ "Top") `appT` conT typeName))
+  let parserAlternatives = foldr (\p r -> varE "<|>" `appE` p `appE` r) (varE "empty") appliedParsers
+  lamE parserParameters (sigE parserAlternatives (conT "Parser" `appT` (litT . strTyLit $ "Top") `appT` conT typeName))
 
 -- ConstructorName <$> coerceParser p0 <*> coerceParser p1 ...
 applyParser :: Name -> [Int] -> ExpQ
 applyParser cName [] = appE (varE $ mkName "pure") (conE cName)
 applyParser cName (n : ns) = do
-  let cons = appE (varE $ mkName "pure") (conE cName)
-  foldr (\i r -> appE (appE (varE (mkName "ap")) r) $ parseAt i) (appE (appE (varE (mkName "ap")) cons) $ parseAt n) (reverse ns)
+  let cons = appE (varE "pure") (conE cName)
+  foldr (\i r -> appE (appE (varE "ap") r) $ parseAt i) (appE (appE (varE "ap") cons) $ parseAt n) (reverse ns)
   where
-    parseAt i = varE (mkName "coerceParser") `appE` varE (mkName $ "p" <> show i)
+    parseAt i = varE "coerceParser" `appE` varE (mkName $ "p" <> show i)
 
 -- | Drop the leading names in a qualified name
 
@@ -135,22 +148,23 @@ indexConstructorTypes allFields constructorFields =
       Just n -> pure n
       Nothing -> fail $ "the field " <> show f <> " cannot be found in the list of all the fields " <> show allFields
 
-makeFieldParser :: Maybe Name -> Type -> ExpQ
-makeFieldParser Nothing fieldType = appTypeE (varE $ mkName "parser") (litT (strTyLit "Top")) `appE` listE [makeArgument fieldType]
-makeFieldParser (Just fieldName) fieldType = do
+makeFieldParser :: ParserOptions -> Maybe Name -> Type -> ExpQ
+makeFieldParser _ Nothing fieldType = appTypeE (varE "parser") (litT (strTyLit "Top")) `appE` listE [makeArgument fieldType]
+makeFieldParser parserOptions (Just fieldName) fieldType = do
   let singletonType = litT (strTyLit $ toS $ dropQualifier $ show fieldName)
-  appTypeE (varE $ mkName "parser") singletonType `appE` listE [makeOption fieldName fieldType]
+  appTypeE (varE "parser") singletonType `appE` listE [makeOption parserOptions fieldName fieldType]
 
 makeArgument :: Type -> ExpQ
-makeArgument fieldType = varE (mkName "argument") `appTypeE` pure fieldType
+makeArgument fieldType = varE "argument" `appTypeE` pure fieldType
 
-makeOption :: Name -> Type -> ExpQ
-makeOption fieldName fieldType = do
-  let unqualified = toS . dropQualifier . show $ fieldName
+makeOption :: ParserOptions -> Name -> Type -> ExpQ
+makeOption parserOptions fieldName fieldType = do
+  let shortName = makeShortName parserOptions (show fieldName)
+  let longName = toS $ makeLongName parserOptions (show fieldName)
   let append = appOf "<>"
-  (if isBoolType fieldType then varE (mkName "switch") else varE (mkName "option") `appTypeE` pure fieldType)
-    `append` (varE (mkName "name") `appE` (litE . stringL $ unqualified))
-    `append` (varE (mkName "short") `appE` (litE . charL . toLower . Prelude.head $ unqualified))
+  (if isBoolType fieldType then varE "switch" else varE "option" `appTypeE` pure fieldType)
+    `append` (varE "name" `appE` (litE . stringL $ longName))
+    `append` (varE "short" `appE` (litE . charL $ shortName))
 
 isBoolType :: Type -> Bool
 isBoolType (ConT t) = show t == ("GHC.Types.Bool" :: Text)
@@ -161,3 +175,13 @@ app = appOf "<+"
 
 appOf :: Text -> ExpQ -> ExpQ -> ExpQ
 appOf operator e1 e2 = infixE (Just e1) (varE (mkName $ toS operator)) (Just e2)
+
+instance IsString Name where
+  fromString = mkName
+
+hyphenate :: Text -> Text
+hyphenate = toS . hyphenateString . toS
+
+hyphenateString :: String -> String
+hyphenateString [] = []
+hyphenateString (a : as) = if isUpper a then '-' : toLower a : hyphenateString as else a : hyphenateString as
