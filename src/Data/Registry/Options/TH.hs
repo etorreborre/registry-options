@@ -18,21 +18,23 @@ makeParser typeName = do
       -- \(p::Parser "Top" OldType) -> fmap NewType p
       let cName = mkName $ show constructor
       let parser = lamE [sigP (varP $ mkName "p") (conT (mkName "Parser") `appT` litT (strTyLit "Top") `appT` pure fieldType)] (appE (appE (varE $ mkName "fmap") (conE cName)) (varE $ mkName "p"))
-      let fieldParser = appTypeE (varE $ mkName "parser") (litT (strTyLit "Top")) `appE` listE [makeArgument fieldType]
-      assembleParsersToRegistry [funOf parser, fieldParser]
+      let fieldParser = makeFieldParser Nothing fieldType
+      addToRegistry [funOf parser, fieldParser]
     TyConI (NewtypeD _context _name _typeVars _kind (RecC constructor [(fieldName, _, fieldType)]) _deriving) -> do
       -- \(p::Parser fieldName OldType) -> fmap NewType p
       let cName = mkName $ show constructor
       let singletonType = litT (strTyLit $ toS $ dropQualifier $ show fieldName)
       let parser = lamE [sigP (varP $ mkName "p") (conT (mkName "Parser") `appT` singletonType `appT` pure fieldType)] (appE (appE (varE $ mkName "fmap") (conE cName)) (varE $ mkName "p"))
-      let fieldParser = appTypeE (varE $ mkName "parser") singletonType `appE` listE [makeOption fieldName fieldType]
-      assembleParsersToRegistry [funOf parser, fieldParser]
+      let fieldParser = makeFieldParser (Just fieldName) fieldType
+      addToRegistry [funOf parser, fieldParser]
     TyConI (DataD _context _name _typeVars _kind constructors _deriving) -> do
       case constructors of
-        [c] ->
-          assembleParsersToRegistry [funOf $ makeConstructorParser typeName c]
+        [c] -> do
+          fs <- fieldsOf c
+          addToRegistry $ [funOf $ makeConstructorParser typeName c] <> (uncurry makeFieldParser <$> fs)
         c : cs -> do
-          assembleParsersToRegistry [funOf $ makeConstructorsParser typeName (c : cs)]
+          fs <- for (c:cs) fieldsOf
+          addToRegistry $ [funOf $ makeConstructorsParser typeName (c : cs)] <> (uncurry makeFieldParser <$> concat fs)
         [] -> do
           qReport True "can not make a Parser for an empty data type"
           fail "parser creation failed"
@@ -40,10 +42,10 @@ makeParser typeName = do
       qReport True ("cannot create a parser for: " <> show other)
       fail "parser creation failed"
 
-assembleParsersToRegistry :: [ExpQ] -> ExpQ
-assembleParsersToRegistry [] = fail "parsers creation failed"
-assembleParsersToRegistry [g] = g
-assembleParsersToRegistry (g : gs) = (appOf "<+") g (assembleParsersToRegistry gs)
+addToRegistry :: [ExpQ] -> ExpQ
+addToRegistry [] = fail "parsers creation failed"
+addToRegistry [g] = g
+addToRegistry (g : gs) = appOf "<+" g (addToRegistry gs)
 
 funOf :: ExpQ -> ExpQ
 funOf = appE (varE (mkName "fun"))
@@ -132,6 +134,12 @@ indexConstructorTypes allFields constructorFields =
     case elemIndex f allFields of
       Just n -> pure n
       Nothing -> fail $ "the field " <> show f <> " cannot be found in the list of all the fields " <> show allFields
+
+makeFieldParser :: Maybe Name -> Type -> ExpQ
+makeFieldParser Nothing fieldType = appTypeE (varE $ mkName "parser") (litT (strTyLit "Top")) `appE` listE [makeArgument fieldType]
+makeFieldParser (Just fieldName) fieldType = do
+  let singletonType = litT (strTyLit $ toS $ dropQualifier $ show fieldName)
+  appTypeE (varE $ mkName "parser") singletonType `appE` listE [makeOption fieldName fieldType]
 
 makeArgument :: Type -> ExpQ
 makeArgument fieldType = varE (mkName "argument") `appTypeE` pure fieldType
