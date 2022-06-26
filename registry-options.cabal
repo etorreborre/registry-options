@@ -25,6 +25,7 @@ library
       Data.Registry.Options
       Data.Registry.Options.CliOption
       Data.Registry.Options.Decoder
+      Data.Registry.Options.DefaultValues
       Data.Registry.Options.Lexing
       Data.Registry.Options.Parser
       Data.Registry.Options.TH

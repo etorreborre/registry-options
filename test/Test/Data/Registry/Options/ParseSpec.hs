@@ -21,65 +21,65 @@ test_simple_parser = test "simple parser" $ do
   parse p "-q --hello eric --repeat 10" === Right (Simple "eric" True 10)
 
 test_parse_argument = test "parse options and arguments" $ do
-  let p = makeParser @Simple (parser @"hello" [argument @Text] <: simpleParser)
+  let p = makeParser @Simple (parser @"hello" @Text [argument] <: simpleParser)
   parse p "eric -q --repeat 10" === Right (Simple "eric" True 10)
 
 test_parse_many_arguments = test "parse options and arguments with repeated values" $ do
   let parsers' =
         fun simpleRepeated
-          <: parser @"hello" [many (argument @Text)]
-          <: parser @"nb" [many int]
-          <: parser @"quiet" [switch]
+          <: parser @"hello" @[Text] [many argument]
+          <: parser @"nb" @[Int] [many int]
+          <: parser @"quiet" @Bool [switch]
           <: optionParsers
 
   let p = makeParser @SimpleRepeated parsers'
   parse p "eric etorreborre -q --repeat 10 12" === Right (SimpleRepeated ["eric", "etorreborre"] True [10, 12])
 
--- test_parse_follow_arguments = test "all values after -- are considered as arguments" $ do
---   let parsers' =
---         parserOf SimpleRepeated
---           <: parser [many (argument @Text "hello")]
---           <: parser [many (name @Int "repeat")]
---           <: parser [switch 'q']
---           <: optionParsers
+test_parse_follow_arguments = test "all values after -- are considered as arguments" $ do
+  let parsers' =
+        fun simpleRepeated
+          <: parser @"hello" @[Text] [many argument]
+          <: parser @"nb" @[Int] [many int]
+          <: parser @"quiet" @Bool [switch]
+          <: optionParsers
 
---   let args = "-q --repeat 10 12 -- eric etorreborre"
---   lexArgs args === [FlagName "q", FlagName "repeat", ArgValue "10", ArgValue "12", DoubleDash, ArgValue "eric", ArgValue "etorreborre"]
+  let args = "-q --repeat 10 12 -- eric etorreborre"
+  lexArgs args === [FlagName "q", FlagName "repeat", ArgValue "10", ArgValue "12", DoubleDash, ArgValue "eric", ArgValue "etorreborre"]
 
---   let p = make @(Parser SimpleRepeated) parsers'
---   parse p args === Right (SimpleRepeated ["eric", "etorreborre"] True [10, 12])
+  let p = makeParser @SimpleRepeated parsers'
+  parse p args === Right (SimpleRepeated ["eric", "etorreborre"] True [10, 12])
 
--- test_parse_optional = test "parse optional options and arguments" $ do
---   let parsers' =
---         parserOf SimpleOptional
---           <: parser [optional (argument @Text "hello")]
---           <: parser [optional (switch 'q')]
---           <: parser [optional (name @Int "repeat")]
---           <: optionParsers
+test_parse_optional = test "parse optional options and arguments" $ do
+  let parsers' =
+        parserOf SimpleOptional
+          <: parser @Top @(Maybe Text) []
+          <: parser @Top @(Maybe Bool) []
+          <: parser @Top @(Maybe Int) []
+          <: optionParsers
 
---   let p = make @(Parser SimpleOptional) parsers'
---   parse p "" === Right (SimpleOptional Nothing Nothing Nothing)
+  let p = makeParser @SimpleOptional parsers'
+  parse p "" === Right (SimpleOptional Nothing Nothing Nothing)
 
--- test_parse_alternatives = test "parse alternative options and arguments" $ do
---   let parsers' =
---         fun simpleAlternative
---           <: parser [argument @Text "hello"]
---           <: parser [one (switch 'q' <> name "quiet")]
---           <: parser [name @Int "repeat"]
---           <: optionParsers
+test_parse_alternatives = test "parse alternative options and arguments" $ do
+  let parsers' =
+        fun simpleAlternative
+          <: parser @Top @Text [argument]
+          <: parser @Top @Bool [switch]
+          <: parser @Top @Int []
+          <: optionParsers
 
---   let p = make @(Parser SimpleAlternative) parsers'
---   parse p "" === Left "no arguments to decode for --repeat (1)"
---   parse p "-q" === Right (SimpleAlternative1 True)
---   parse p "hello" === Right (SimpleAlternative2 "hello")
+  let p = makeParser @SimpleAlternative parsers'
+  parse p "" === Left "no arguments to decode for --repeat (1)"
+  parse p "-q" === Right (SimpleAlternative1 True)
+  parse p "hello" === Right (SimpleAlternative2 "hello")
 
---   findOptionValues (LongOnly "repeat") One [FlagName "repeat", ArgValue "10"] === Just [ArgValue "10"]
---   parse p "--repeat 10" === Right (SimpleAlternative3 10)
+  findOptionValues (LongOnly "repeat") One [FlagName "repeat", ArgValue "10"] === Just [ArgValue "10"]
+  parse p "--repeat 10" === Right (SimpleAlternative3 10)
 
 -- * HELPERS
 
-makeParser :: forall a. (Typeable a) => Registry _ _ -> Parser "Top" a
-makeParser = make @(Parser "Top" a)
+makeParser :: forall a. (Typeable a) => Registry _ _ -> Parser Top a
+makeParser = make @(Parser Top a)
 
 simpleParser =
   fun simple
@@ -92,9 +92,10 @@ simple :: Parser "hello" Text -> Parser "quiet" Bool -> Parser "nb" Int -> Parse
 simple p1 p2 p3 = Simple <$> coerce p1 <*> coerce p2 <*> coerce p3
 
 optionParsers =
-  parser @"hello" [text]
-    <: parser @"nb" [int]
-    <: parser @"quiet" [switch]
+  parser @"hello" @Text [text]
+    <: parser @"nb" @Int [int]
+    <: parser @"quiet" @Bool [switch]
+    <: fun defaultValues
     <: decoders
 
 decoders =
@@ -123,5 +124,5 @@ data SimpleAlternative
   | SimpleAlternative3 Int
   deriving (Eq, Show)
 
-simpleAlternative :: Parser s1 Bool -> Parser s2 Text -> Parser s3 Int -> Parser "Top" SimpleAlternative
-simpleAlternative p1 p2 p3 = (SimpleAlternative1 <$> coerce p1) <|> (SimpleAlternative2 <$> coerce p2) <|> (SimpleAlternative3 <$> coerce p3)
+simpleAlternative :: Parser Top Bool -> Parser Top Text -> Parser Top Int -> Parser Top SimpleAlternative
+simpleAlternative p1 p2 p3 = (SimpleAlternative1 <$> p1) <|> (SimpleAlternative2 <$> p2) <|> (SimpleAlternative3 <$> p3)

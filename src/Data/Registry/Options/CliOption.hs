@@ -4,23 +4,21 @@ import Data.Registry.Options.Lexing
 import qualified Data.Text as T
 import Protolude hiding (option)
 
-data CliOption a = CliOption
+data CliOption = CliOption
   { _name :: Maybe Text,
     _shortName :: Maybe Char,
     _metavar :: Maybe Text,
     _help :: Maybe Text,
-    _activeValue :: Maybe a, -- when a flag is present
-    _defaultValue :: Maybe a, -- when a flag is missing
     _cardinality :: Cardinality
   }
   deriving (Eq, Show)
 
-instance Semigroup (CliOption a) where
-  CliOption n1 s1 m1 h1 d1 v1 c1 <> CliOption n2 s2 m2 h2 d2 v2 c2 =
-    CliOption (n1 <|> n2) (s1 <|> s2) (m1 <|> m2) (h1 <|> h2) (d1 <|> d2) (v1 <|> v2) (c1 <> c2)
+instance Semigroup CliOption where
+  CliOption n1 s1 m1 h1 c1 <> CliOption n2 s2 m2 h2 c2 =
+    CliOption (n1 <|> n2) (s1 <|> s2) (m1 <|> m2) (h1 <|> h2) (c1 <> c2)
 
-instance Monoid (CliOption a) where
-  mempty = CliOption Nothing Nothing Nothing Nothing Nothing Nothing One
+instance Monoid CliOption where
+  mempty = CliOption Nothing Nothing Nothing Nothing One
   mappend = (<>)
 
 data Cardinality
@@ -43,57 +41,51 @@ hasZeroCardinality :: Cardinality -> Bool
 hasZeroCardinality Zero = True
 hasZeroCardinality _ = False
 
-switch :: CliOption Bool
-switch = mempty {_activeValue = Just True, _defaultValue = Just False, _cardinality = Zero}
+switch :: CliOption
+switch = mempty {_cardinality = Zero}
 
-flag :: a -> CliOption a
-flag a = mempty {_activeValue = Just a, _cardinality = Zero}
-
-option :: CliOption a
+option :: CliOption
 option = mempty
 
-argument :: CliOption a
+argument :: CliOption
 argument = metavar "argument"
 
-metavar :: Text -> CliOption a
+metavar :: Text -> CliOption
 metavar t = mempty {_metavar = Just t}
 
-name :: Text -> CliOption a
+name :: Text -> CliOption
 name t = mempty {_name = Just t, _cardinality = One}
 
-text :: CliOption Text
+text :: CliOption
 text = mempty {_cardinality = One}
 
-int :: CliOption Int
+int :: CliOption
 int = mempty {_cardinality = One}
 
-short :: Char -> CliOption a
+short :: Char -> CliOption
 short t = mempty {_shortName = Just t}
 
-help :: Text -> CliOption a
+help :: Text -> CliOption
 help t = mempty {_help = Just t}
 
-defaultValue :: a -> CliOption a
-defaultValue a = mempty {_activeValue = Just a}
+many :: CliOption -> CliOption
+many (CliOption n s m h _) = CliOption n s m h Many
 
-many :: CliOption a -> CliOption [a]
-many (CliOption n s m h d v _) = CliOption n s m h (pure <$> d) (pure <$> v) Many
+one :: CliOption -> CliOption
+one (CliOption n s m h _) = CliOption n s m h One
 
-one :: CliOption a -> CliOption a
-one (CliOption n s m h d v _) = CliOption n s m h d v One
+optional :: CliOption -> CliOption
+optional (CliOption n s m h _) = CliOption n s m h Zero
 
-optional :: CliOption a -> CliOption (Maybe a)
-optional (CliOption n s m h _ _ _) = CliOption n s m h (pure Nothing) (pure Nothing) Zero
-
-display :: CliOption a -> Text
-display (CliOption (Just n) Nothing (Just m) _ _ _ c) = "--" <> n <> " " <> m <> displayCardinality c
-display (CliOption (Just n) (Just s) (Just m) _ _ _ c) = "[--" <> n <> "| -" <> T.singleton s <> "]" <> " " <> m <> displayCardinality c
-display (CliOption (Just n) Nothing Nothing _ _ _ c) = "--" <> n <> displayCardinality c
-display (CliOption (Just n) (Just s) Nothing _ _ _ c) = "--" <> n <> ", -" <> T.singleton s <> displayCardinality c
-display (CliOption Nothing (Just s) Nothing _ _ _ c) = "-" <> T.singleton s <> displayCardinality c
-display (CliOption Nothing (Just s) (Just m) _ _ _ c) = "-" <> T.singleton s <> m <> displayCardinality c
-display (CliOption Nothing _ (Just m) _ _ _ c) = m <> displayCardinality c
-display (CliOption Nothing _ Nothing _ _ _ c) = "" <> displayCardinality c
+display :: CliOption -> Text
+display (CliOption (Just n) Nothing (Just m) _ c) = "--" <> n <> " " <> m <> displayCardinality c
+display (CliOption (Just n) (Just s) (Just m) _ c) = "[--" <> n <> "| -" <> T.singleton s <> "]" <> " " <> m <> displayCardinality c
+display (CliOption (Just n) Nothing Nothing _ c) = "--" <> n <> displayCardinality c
+display (CliOption (Just n) (Just s) Nothing _ c) = "--" <> n <> ", -" <> T.singleton s <> displayCardinality c
+display (CliOption Nothing (Just s) Nothing _ c) = "-" <> T.singleton s <> displayCardinality c
+display (CliOption Nothing (Just s) (Just m) _ c) = "-" <> T.singleton s <> m <> displayCardinality c
+display (CliOption Nothing _ (Just m) _ c) = m <> displayCardinality c
+display (CliOption Nothing _ Nothing _ c) = "" <> displayCardinality c
 
 data Name
   = LongShort Text Text
@@ -135,7 +127,7 @@ sameName (LongOnly n) (FlagName f) = n == f
 sameName (ShortOnly n) (FlagName f) = n == f
 sameName _ _ = False
 
-getName :: CliOption a -> Maybe Name
+getName :: CliOption -> Maybe Name
 getName o =
   case (_name o, _shortName o) of
     (Just n, Just s) -> Just $ LongShort n $ T.singleton s

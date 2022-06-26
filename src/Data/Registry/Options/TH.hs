@@ -149,20 +149,23 @@ indexConstructorTypes allFields constructorFields =
       Nothing -> fail $ "the field " <> show f <> " cannot be found in the list of all the fields " <> show allFields
 
 makeFieldParser :: ParserOptions -> Maybe Name -> Type -> ExpQ
-makeFieldParser _ Nothing fieldType = appTypeE (varE "parser") (litT (strTyLit "Top")) `appE` listE [makeArgument fieldType]
+makeFieldParser _ Nothing fieldType = do
+  (varE "parser" `appTypeE` litT (strTyLit "Top") `appTypeE` pure fieldType) `appE` listE [makeArgument fieldType]
 makeFieldParser parserOptions (Just fieldName) fieldType = do
   let singletonType = litT (strTyLit $ toS $ dropQualifier $ show fieldName)
-  appTypeE (varE "parser") singletonType `appE` listE [makeOption parserOptions fieldName fieldType]
+  (varE "parser" `appTypeE` singletonType `appTypeE` pure fieldType) `appE` listE [makeOption parserOptions fieldName fieldType]
 
 makeArgument :: Type -> ExpQ
-makeArgument fieldType = varE "argument" `appTypeE` pure fieldType
+makeArgument fieldType = do
+  let append = appOf "<>"
+  varE "argument" `append` (varE "metavar" `appE` (litE . stringL $ toUpper <$> toS (dropQualifier (show fieldType))))
 
 makeOption :: ParserOptions -> Name -> Type -> ExpQ
 makeOption parserOptions fieldName fieldType = do
   let shortName = makeShortName parserOptions (show fieldName)
   let longName = toS $ makeLongName parserOptions (show fieldName)
   let append = appOf "<>"
-  (if isBoolType fieldType then varE "switch" else varE "option" `appTypeE` pure fieldType)
+  (if isBoolType fieldType then varE "switch" else varE "option")
     `append` (varE "name" `appE` (litE . stringL $ longName))
     `append` (varE "short" `appE` (litE . charL $ shortName))
 

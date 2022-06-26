@@ -10,8 +10,12 @@ import Data.Registry (ApplyVariadic, fun, funTo)
 import Data.Registry.Internal.Types (Typed)
 import Data.Registry.Options.CliOption
 import Data.Registry.Options.Decoder
+import Data.Registry.Options.DefaultValues
 import Data.Registry.Options.Lexing
+import GHC.TypeLits
 import Protolude
+
+type Top = "Top"
 
 newtype Parser (s :: Symbol) a = Parser
   { parseLexed :: [Lexed] -> Either Text a
@@ -45,14 +49,14 @@ parse :: Parser s a -> Text -> Either Text a
 parse p = parseLexed p . lexArgs
 
 -- | Create a Parser a for a given constructor of type a
-parserOf :: forall s a b. (KnownSymbol s, ApplyVariadic (Parser s) a b, Typeable a, Typeable b) => a -> Typed b
-parserOf = funTo @(Parser s)
+parserOf :: forall a b. (ApplyVariadic (Parser Top) a b, Typeable a, Typeable b) => a -> Typed b
+parserOf = funTo @(Parser Top)
 
-parser :: forall s a. (KnownSymbol s, Typeable a) => [CliOption a] -> Typed (Decoder a -> Parser s a)
+parser :: forall s a. (KnownSymbol s, Typeable a) => [CliOption] -> Typed (DefaultValues -> Decoder a -> Parser s a)
 parser o = fun $ parseWith @s @a o
 
-parseWith :: forall s a. (KnownSymbol s, Typeable a) => [CliOption a] -> Decoder a -> Parser s a
-parseWith os d =
+parseWith :: forall s a. (KnownSymbol s, Typeable a) => [CliOption] -> DefaultValues -> Decoder a -> Parser s a
+parseWith os defaults d =
   Parser $ \lexed -> do
     case getName o of
       -- named option or switch
@@ -85,12 +89,12 @@ parseWith os d =
             decode d (unlexValues args)
   where
     o = mconcat os
-    defaultReturn = case _activeValue o of
+    defaultReturn = case getActiveValue @a defaults (getSymbol @s) of
       Just def -> pure def
-      Nothing -> Left $ "missing default value for argument for: " <> display o
-    missingReturn = case _defaultValue o of
+      Nothing -> Left $ "missing active value for argument: " <> display o
+    missingReturn = case getDefaultValue @a defaults (getSymbol @s) of
       Just def -> pure def
-      Nothing -> Left $ "missing value for argument for: " <> display o
+      Nothing -> Left $ "missing active value for argument: " <> display o
 
 command :: Text -> (a -> b) -> Parser s a -> Parser s b
 command commandName constructor p = Parser $ \case
@@ -99,3 +103,6 @@ command commandName constructor p = Parser $ \case
       fmap constructor (parseLexed p rest)
   _ ->
     Left $ "command not found. Expected: " <> commandName
+
+getSymbol :: forall s. (KnownSymbol s) => Text
+getSymbol = toS $ symbolVal @s Proxy
