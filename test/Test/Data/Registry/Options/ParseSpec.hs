@@ -83,19 +83,19 @@ getParser = make @(Parser Anonymous a)
 
 simpleParser =
   fun simple
-    <: fun defaultFieldOptions
     <: optionParsers
 
 simpleRepeated :: Parser "hello" [Text] -> Parser "quiet" Bool -> Parser "nb" [Int] -> Parser "Anonymous" SimpleRepeated
 simpleRepeated p1 p2 p3 = SimpleRepeated <$> coerce p1 <*> coerce p2 <*> coerce p3
 
-simple :: Parser "hello" Text -> Parser "quiet" Bool -> Parser "nb" Int -> Parser "Anonymous" Simple
+simple :: Parser "hello" Text -> Parser "quiet" Bool -> Parser "repeat" Int -> Parser "Anonymous" Simple
 simple p1 p2 p3 = Simple <$> coerce p1 <*> coerce p2 <*> coerce p3
 
 optionParsers =
   field @"hello" @Text
-    <: field @"nb" @Int
+    <: field @"repeat" @Int
     <: field @"quiet" @Bool
+    <: fun defaultFieldOptions
     <: decoders
 
 decoders =

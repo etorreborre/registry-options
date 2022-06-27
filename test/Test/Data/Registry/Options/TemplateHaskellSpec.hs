@@ -5,7 +5,6 @@ module Test.Data.Registry.Options.TemplateHaskellSpec where
 
 import Data.Registry
 import Data.Registry.Options as D
-import Data.Registry.Options.TH
 import Protolude hiding (Option, many, one, option, optional)
 import Test.Data.Registry.Options.TemplateHaskellTypes
 import Test.Tasty.Hedgehogx hiding (defaultValue, int, text)

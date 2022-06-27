@@ -7,6 +7,7 @@
 module Data.Registry.Options.Parser where
 
 import Data.Coerce
+import Data.Dynamic
 import Data.Registry (ApplyVariadic, Registry, fun, funTo, (<+))
 import Data.Registry.Internal.Types (Typed)
 import Data.Registry.Options.CliOption
@@ -56,10 +57,11 @@ parserOf :: forall a b. (ApplyVariadic (Parser Anonymous) a b, Typeable a, Typea
 parserOf = funTo @(Parser Anonymous)
 
 field :: forall s a. (KnownSymbol s, Typeable a) => Registry _ _
-field =
-  fun (\fieldOptions -> parseField @s @a fieldOptions (Just $ getSymbol @s) (showType @a))
-    <+ (noDefaultValue @s @a)
-    <+ (noActiveValue @s @a)
+field = do
+  let fieldType = showType @a
+  fun (\fieldOptions -> parseField @s @a fieldOptions (Just $ getSymbol @s) fieldType)
+    <+ (if isBool fieldType then createDefaultValue @s @a (toDyn False) else noDefaultValue @s @a)
+    <+ (if isBool fieldType then createActiveValue @s @a (toDyn True) else noActiveValue @s @a)
 
 anonymous :: forall a. (Typeable a) => Registry _ _
 anonymous =
@@ -76,7 +78,7 @@ parseField fieldOptions (Just fieldName) fieldType = do
   parseWith [if isBool fieldType then switch else option, name longName, short shortName]
 
 isBool :: Text -> Bool
-isBool t = t == ("GHC.Types.Bool" :: Text)
+isBool t = t == ("GHC.Types.Bool" :: Text) || t == ("Bool" :: Text)
 
 parseWith :: forall s a. (KnownSymbol s, Typeable a) => [CliOption] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
 parseWith os defaultValue activeValue d =
