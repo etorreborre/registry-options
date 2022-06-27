@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Data.Registry.Options.TH where
 
 import Control.Monad.Fail
@@ -83,7 +85,7 @@ makeConstructorParser parserOptions typeName c = do
             let fieldNameType = fieldNameTypeT parserOptions mFieldName
             sigP (varP (mkName $ "p" <> show n)) (conT "Parser" `appT` fieldNameType `appT` pure t)
         )
-          <$> zip fs [0 ..]
+          <$> zip fs [(0 :: Int) ..]
   lamE parserParameters (sigE (applyParser cName [0 .. (length fs - 1)]) (conT "Parser" `appT` fieldNameTypeT parserOptions Nothing `appT` conT typeName))
 
 -- | Make a Parser for a several Constructors, where each field of each the constructor is parsed separately
@@ -100,7 +102,7 @@ makeConstructorsParser parserOptions typeName cs = do
             let fieldNameType = fieldNameTypeT parserOptions mFieldName
             sigP (varP (mkName $ "p" <> show n)) (conT "Parser" `appT` fieldNameType `appT` pure t)
         )
-          <$> zip fs [0 ..]
+          <$> zip fs [(0 :: Int) ..]
   let appliedParsers =
         ( \c -> do
             cName <- nameOf c
