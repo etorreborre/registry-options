@@ -17,58 +17,58 @@ test_lexed = test "lex the command line" $ do
   lex ["-q", "--repeat", "10", "eric", "etorreborre"] === [FlagName "q", FlagName "repeat", ArgValue "10", ArgValue "eric", ArgValue "etorreborre"]
 
 test_simple_parser = test "simple parser" $ do
-  let p = makeParser @Simple simpleParser
+  let p = getParser @Simple simpleParser
   parse p "-q --hello eric --repeat 10" === Right (Simple "eric" True 10)
 
 test_parse_argument = test "parse options and arguments" $ do
-  let p = makeParser @Simple (field @"hello" @Text [argument] <: simpleParser)
+  let p = getParser @Simple (field @"hello" @Text <: simpleParser)
   parse p "eric -q --repeat 10" === Right (Simple "eric" True 10)
 
 test_parse_many_arguments = test "parse options and arguments with repeated values" $ do
   let parsers' =
         fun simpleRepeated
-          <: field @"hello" @[Text] [many argument]
-          <: field @"nb" @[Int] [many int]
-          <: field @"quiet" @Bool [switch]
+          <: field @"hello" @[Text]
+          <: field @"nb" @[Int]
+          <: field @"quiet" @Bool
           <: optionParsers
 
-  let p = makeParser @SimpleRepeated parsers'
+  let p = getParser @SimpleRepeated parsers'
   parse p "eric etorreborre -q --repeat 10 12" === Right (SimpleRepeated ["eric", "etorreborre"] True [10, 12])
 
 test_parse_follow_arguments = test "all values after -- are considered as arguments" $ do
   let parsers' =
         fun simpleRepeated
-          <: field @"hello" @[Text] [many argument]
-          <: field @"nb" @[Int] [many int]
-          <: field @"quiet" @Bool [switch]
+          <: field @"hello" @[Text]
+          <: field @"nb" @[Int]
+          <: field @"quiet" @Bool
           <: optionParsers
 
   let args = "-q --repeat 10 12 -- eric etorreborre"
   lexArgs args === [FlagName "q", FlagName "repeat", ArgValue "10", ArgValue "12", DoubleDash, ArgValue "eric", ArgValue "etorreborre"]
 
-  let p = makeParser @SimpleRepeated parsers'
+  let p = getParser @SimpleRepeated parsers'
   parse p args === Right (SimpleRepeated ["eric", "etorreborre"] True [10, 12])
 
 test_parse_optional = test "parse optional options and arguments" $ do
   let parsers' =
         parserOf SimpleOptional
-          <: anonymous @(Maybe Text) []
-          <: anonymous @(Maybe Bool) []
-          <: anonymous @(Maybe Int) []
+          <: anonymous @(Maybe Text)
+          <: anonymous @(Maybe Bool)
+          <: anonymous @(Maybe Int)
           <: optionParsers
 
-  let p = makeParser @SimpleOptional parsers'
+  let p = getParser @SimpleOptional parsers'
   parse p "" === Right (SimpleOptional Nothing Nothing Nothing)
 
 test_parse_alternatives = test "parse alternative options and arguments" $ do
   let parsers' =
         fun simpleAlternative
-          <: anonymous @Text [argument]
-          <: anonymous @Bool [switch]
-          <: anonymous @Int []
+          <: anonymous @Text
+          <: anonymous @Bool
+          <: anonymous @Int
           <: optionParsers
 
-  let p = makeParser @SimpleAlternative parsers'
+  let p = getParser @SimpleAlternative parsers'
   parse p "" === Left "no arguments to decode for --repeat (1)"
   parse p "-q" === Right (SimpleAlternative1 True)
   parse p "hello" === Right (SimpleAlternative2 "hello")
@@ -78,11 +78,12 @@ test_parse_alternatives = test "parse alternative options and arguments" $ do
 
 -- * HELPERS
 
-makeParser :: forall a. (Typeable a) => Registry _ _ -> Parser Anonymous a
-makeParser = make @(Parser Anonymous a)
+getParser :: forall a. (Typeable a) => Registry _ _ -> Parser Anonymous a
+getParser = make @(Parser Anonymous a)
 
 simpleParser =
   fun simple
+    <: fun defaultFieldOptions
     <: optionParsers
 
 simpleRepeated :: Parser "hello" [Text] -> Parser "quiet" Bool -> Parser "nb" [Int] -> Parser "Anonymous" SimpleRepeated
@@ -92,10 +93,9 @@ simple :: Parser "hello" Text -> Parser "quiet" Bool -> Parser "nb" Int -> Parse
 simple p1 p2 p3 = Simple <$> coerce p1 <*> coerce p2 <*> coerce p3
 
 optionParsers =
-  field @"hello" @Text [text]
-    <: field @"nb" @Int [int]
-    <: field @"quiet" @Bool [switch]
-    <: fun defaultValues
+  field @"hello" @Text
+    <: field @"nb" @Int
+    <: field @"quiet" @Bool
     <: decoders
 
 decoders =
