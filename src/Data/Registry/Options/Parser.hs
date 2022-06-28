@@ -56,47 +56,47 @@ parse p = parseLexed p . lexArgs
 parserOf :: forall a b. (ApplyVariadic (Parser Anonymous) a b, Typeable a, Typeable b) => a -> Typed b
 parserOf = funTo @(Parser Anonymous)
 
-option :: forall s a. (KnownSymbol s, Typeable a) => Registry _ _
-option = do
+option :: forall s a. (KnownSymbol s, Typeable a) => [CliOption] -> Registry _ _
+option os = do
   let fieldType = showType @a
-  fun (\fieldOptions -> parseField @s @a fieldOptions (Just $ getSymbol @s) fieldType)
+  fun (\fieldOptions -> parseField @s @a fieldOptions (Just $ getSymbol @s) fieldType os)
     <+ noDefaultValue @s @a
     <+ noActiveValue @s @a
 
-flag :: forall s a. (KnownSymbol s, Typeable a) => a -> Maybe a -> Registry _ _
-flag activeValue defaultValue = do
+flag :: forall s a. (KnownSymbol s, Typeable a) => a -> Maybe a -> [CliOption] -> Registry _ _
+flag activeValue defaultValue os = do
   let fieldType = showType @a
-  fun (\fieldOptions -> parseField @s @a fieldOptions (Just $ getSymbol @s) fieldType)
+  fun (\fieldOptions -> parseField @s @a fieldOptions (Just $ getSymbol @s) fieldType os)
     <+ maybe (noDefaultValue @s @a) (createDefaultValue @s @a . toDyn) defaultValue
     <+ createActiveValue @s @a (toDyn activeValue)
 
-switch :: forall s. (KnownSymbol s) => Registry _ _
-switch = do
+switch :: forall s. (KnownSymbol s) => [CliOption] -> Registry _ _
+switch os = do
   let fieldType = showType @Bool
-  fun (\fieldOptions -> parseField @s @Bool fieldOptions (Just $ getSymbol @s) fieldType)
+  fun (\fieldOptions -> parseField @s @Bool fieldOptions (Just $ getSymbol @s) fieldType os)
     <+ createDefaultValue @s @Bool (toDyn False)
     <+ createActiveValue @s @Bool (toDyn True)
 
-argument :: forall s a. (KnownSymbol s, Typeable a) => Registry _ _
-argument = do
+argument :: forall s a. (KnownSymbol s, Typeable a) => [CliOption] -> Registry _ _
+argument os = do
   let fieldType = showType @a
-  fun (\fieldOptions -> parseField @s @a fieldOptions Nothing fieldType)
+  fun (\fieldOptions -> parseField @s @a fieldOptions Nothing fieldType os)
     <+ noDefaultValue @s @a
     <+ noActiveValue @s @a
 
-anonymous :: forall a. (Typeable a) => Registry _ _
-anonymous =
-  fun (\fieldOptions -> parseField @Anonymous @a fieldOptions Nothing (showType @a))
+anonymous :: forall a. (Typeable a) => [CliOption] -> Registry _ _
+anonymous os =
+  fun (\fieldOptions -> parseField @Anonymous @a fieldOptions Nothing (showType @a) os)
     <+ (noDefaultValue @Anonymous @a)
     <+ (noActiveValue @Anonymous @a)
 
-parseField :: forall s a. (KnownSymbol s, Typeable a) => FieldOptions -> Maybe Text -> Text -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
-parseField fieldOptions Nothing fieldType =
-  parseWith [metavar $ makeMetavar fieldOptions fieldType]
-parseField fieldOptions (Just fieldName) _ = do
+parseField :: forall s a. (KnownSymbol s, Typeable a) => FieldOptions -> Maybe Text -> Text -> [CliOption] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
+parseField fieldOptions Nothing fieldType os =
+  parseWith $ [metavar $ makeMetavar fieldOptions fieldType] <> os
+parseField fieldOptions (Just fieldName) _ os = do
   let shortName = makeShortName fieldOptions fieldName
   let longName = toS $ makeLongName fieldOptions fieldName
-  parseWith [name longName, short shortName]
+  parseWith $ [name longName, short shortName] <> os
 
 parseWith :: forall s a. (KnownSymbol s, Typeable a) => [CliOption] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
 parseWith os defaultValue activeValue d =

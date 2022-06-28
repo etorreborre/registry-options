@@ -17,14 +17,14 @@ test_lexed = test "lex the command line" $ do
   lex ["-q", "--repeat", "10", "eric", "etorreborre"] === [FlagName "q", FlagName "repeat", ArgValue "10", ArgValue "eric", ArgValue "etorreborre"]
 
 test_parse_option = test "parse an option" $ do
-  let p = make @(Parser "text" Text) (option @"text" @Text <: defaults)
+  let p = make @(Parser "text" Text) (option @"text" @Text [] <: defaults)
   parse p "--t eric" === Right "eric"
   parse p "--text eric" === Right "eric"
   parse p "--typo eric" === Left "missing default value for argument: --text, -t"
 
 test_parse_flag = test "parse a flag" $ do
   -- with no default value
-  let p = make @(Parser "int" Int) (flag @"int" @Int 10 Nothing <: defaults)
+  let p = make @(Parser "int" Int) (flag @"int" @Int 10 Nothing [] <: defaults)
 
   annotate "a flag can still work as an option"
   parse p "--int 1" === Right 1
@@ -37,7 +37,7 @@ test_parse_flag = test "parse a flag" $ do
   parse p "--typo" === Left "missing default value for argument: --int, -i"
 
   -- with a default value
-  let p1 = make @(Parser "int" Int) (flag @"int" @Int 10 (Just 100) <: defaults)
+  let p1 = make @(Parser "int" Int) (flag @"int" @Int 10 (Just 100) [] <: defaults)
   annotate "a flag can still work as an option"
   parse p1 "--int 1" === Right 1
   parse p1 "--i 1" === Right 1
@@ -49,22 +49,22 @@ test_parse_flag = test "parse a flag" $ do
   parse p1 "--typo" === Right 100
 
 test_parse_switch = test "parse a switch" $ do
-  let p = make @(Parser "bool" Bool) (switch @"bool" <: defaults)
+  let p = make @(Parser "bool" Bool) (switch @"bool" [] <: defaults)
   parse p "-b" === Right True
   parse p "--bool" === Right True
   parse p "--typo" === Right False
 
 test_parse_argument = test "parse an argument" $ do
-  let p = make @(Parser "argument" Text) (argument @"argument" @Text <: defaults)
+  let p = make @(Parser "argument" Text) (argument @"argument" @Text [] <: defaults)
   parse p "eric" === Right "eric"
 
 test_parse_constructor = test "parse a constructor" $ do
   let parsers =
         fun constructor1
-          <: option @"text" @Text
-          <: flag @"int" @Int 10 (Just 100)
-          <: switch @"bool"
-          <: argument @"file" @File
+          <: option @"text" @Text []
+          <: flag @"int" @Int 10 (Just 100) []
+          <: switch @"bool" []
+          <: argument @"file" @File []
           <: defaults
 
   let p = getParser @Constructor1 parsers
@@ -79,16 +79,26 @@ test_parse_constructor = test "parse a constructor" $ do
   annotateShow "-- can be used to separate arguments from options"
   parse p "-b --text eric --int -- file1" === Right (Constructor1 "eric" True 10 file1)
 
+test_add_help = test "the help text can be specified for each option, and names can be changed" $ do
+  let _parsers =
+        fun constructor1
+          <: option @"text" @Text [help "a text", metavar "SOME_TEXT", name "some-text"]
+          <: flag @"int" @Int 10 (Just 100) [help "an int"]
+          <: switch @"bool" [help "a bool"]
+          <: argument @"file" @File [help "a file path"]
+          <: defaults
+  success
+
 test_parse_many_arguments = test "parse options and arguments with repeated values" $ do
-  let p = make @(Parser "files" [File]) (argument @"files" @[File] <: defaults)
+  let p = make @(Parser "files" [File]) (argument @"files" @[File] [] <: defaults)
   parse p "file1 file2" === Right [File "file1", File "file2"]
 
 test_parse_follow_arguments = test "all values after -- are considered as arguments" $ do
   let parsers' =
         fun simpleRepeated
-          <: option @"text" @[Text]
-          <: option @"int" @[Int]
-          <: option @"bool" @Bool
+          <: option @"text" @[Text] []
+          <: option @"int" @[Int] []
+          <: option @"bool" @Bool []
           <: optionParsers
 
   let args = "-q --repeat 10 12 -- eric etorreborre"
@@ -100,9 +110,9 @@ test_parse_follow_arguments = test "all values after -- are considered as argume
 test_parse_optional = test "parse optional options and arguments" $ do
   let parsers' =
         parserOf SimpleOptional
-          <: anonymous @(Maybe Text)
-          <: anonymous @(Maybe Bool)
-          <: anonymous @(Maybe Int)
+          <: anonymous @(Maybe Text) []
+          <: anonymous @(Maybe Bool) []
+          <: anonymous @(Maybe Int) []
           <: optionParsers
 
   let p = getParser @SimpleOptional parsers'
@@ -111,9 +121,9 @@ test_parse_optional = test "parse optional options and arguments" $ do
 test_parse_alternatives = test "parse alternative options and arguments" $ do
   let parsers' =
         fun simpleAlternative
-          <: anonymous @Text
-          <: anonymous @Bool
-          <: anonymous @Int
+          <: anonymous @Text []
+          <: anonymous @Bool []
+          <: anonymous @Int []
           <: optionParsers
 
   let p = getParser @SimpleAlternative parsers'
@@ -136,9 +146,9 @@ constructor1 :: Parser "text" Text -> Parser "bool" Bool -> Parser "int" Int -> 
 constructor1 p1 p2 p3 p4 = Constructor1 <$> coerce p1 <*> coerce p2 <*> coerce p3 <*> coerce p4
 
 optionParsers =
-  option @"text" @Text
-    <: option @"int" @Int
-    <: option @"bool" @Bool
+  option @"text" @Text []
+    <: option @"int" @Int []
+    <: option @"bool" @Bool []
     <: fun defaultFieldOptions
     <: decoders
 
