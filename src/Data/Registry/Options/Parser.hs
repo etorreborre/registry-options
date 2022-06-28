@@ -63,15 +63,22 @@ field = do
     <+ (if isBool fieldType then createDefaultValue @s @a (toDyn False) else noDefaultValue @s @a)
     <+ (if isBool fieldType then createActiveValue @s @a (toDyn True) else noActiveValue @s @a)
 
+argument :: forall s a. (KnownSymbol s, Typeable a) => Registry _ _
+argument = do
+  let fieldType = showType @a
+  fun (\fieldOptions -> parseField @s @a fieldOptions Nothing fieldType)
+    <+ noDefaultValue @s @a
+    <+ noActiveValue @s @a
+
 anonymous :: forall a. (Typeable a) => Registry _ _
 anonymous =
-  fun (\fieldOptions -> parseWith @Anonymous @a [argument, metavar $ makeMetavar fieldOptions (showType @a)])
+  fun (\fieldOptions -> parseWith @Anonymous @a [metavar $ makeMetavar fieldOptions (showType @a)])
     <+ (noDefaultValue @Anonymous @a)
     <+ (noActiveValue @Anonymous @a)
 
 parseField :: forall s a. (KnownSymbol s, Typeable a) => FieldOptions -> Maybe Text -> Text -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
 parseField fieldOptions Nothing fieldType =
-  parseWith [argument, metavar $ makeMetavar fieldOptions fieldType]
+  parseWith [metavar $ makeMetavar fieldOptions fieldType]
 parseField fieldOptions (Just fieldName) fieldType = do
   let shortName = makeShortName fieldOptions fieldName
   let longName = toS $ makeLongName fieldOptions fieldName

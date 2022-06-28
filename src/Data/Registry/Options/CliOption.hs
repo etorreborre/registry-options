@@ -47,9 +47,6 @@ switch = mempty {_cardinality = Zero}
 option :: CliOption
 option = mempty
 
-argument :: CliOption
-argument = metavar "argument"
-
 metavar :: Text -> CliOption
 metavar t = mempty {_metavar = Just t}
 

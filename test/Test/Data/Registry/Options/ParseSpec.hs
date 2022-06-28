@@ -18,18 +18,18 @@ test_lexed = test "lex the command line" $ do
 
 test_simple_parser = test "simple parser" $ do
   let p = getParser @Simple simpleParser
-  parse p "-q --hello eric --repeat 10" === Right (Simple "eric" True 10)
+  parse p "-b --text eric --int 10" === Right (Simple "eric" True 10)
 
 test_parse_argument = test "parse options and arguments" $ do
-  let p = getParser @Simple (field @"hello" @Text <: simpleParser)
-  parse p "eric -q --repeat 10" === Right (Simple "eric" True 10)
+  let p = getParser @Simple (argument @"text" @Text <: simpleParser)
+  parse p "eric -b --int 10" === Right (Simple "eric" True 10)
 
 test_parse_many_arguments = test "parse options and arguments with repeated values" $ do
   let parsers' =
         fun simpleRepeated
-          <: field @"hello" @[Text]
-          <: field @"nb" @[Int]
-          <: field @"quiet" @Bool
+          <: field @"text" @[Text]
+          <: field @"int" @[Int]
+          <: field @"bool" @Bool
           <: optionParsers
 
   let p = getParser @SimpleRepeated parsers'
@@ -38,9 +38,9 @@ test_parse_many_arguments = test "parse options and arguments with repeated valu
 test_parse_follow_arguments = test "all values after -- are considered as arguments" $ do
   let parsers' =
         fun simpleRepeated
-          <: field @"hello" @[Text]
-          <: field @"nb" @[Int]
-          <: field @"quiet" @Bool
+          <: field @"text" @[Text]
+          <: field @"int" @[Int]
+          <: field @"bool" @Bool
           <: optionParsers
 
   let args = "-q --repeat 10 12 -- eric etorreborre"
@@ -85,16 +85,16 @@ simpleParser =
   fun simple
     <: optionParsers
 
-simpleRepeated :: Parser "hello" [Text] -> Parser "quiet" Bool -> Parser "nb" [Int] -> Parser "Anonymous" SimpleRepeated
+simpleRepeated :: Parser "text" [Text] -> Parser "bool" Bool -> Parser "int" [Int] -> Parser "Anonymous" SimpleRepeated
 simpleRepeated p1 p2 p3 = SimpleRepeated <$> coerce p1 <*> coerce p2 <*> coerce p3
 
-simple :: Parser "hello" Text -> Parser "quiet" Bool -> Parser "repeat" Int -> Parser "Anonymous" Simple
+simple :: Parser "text" Text -> Parser "bool" Bool -> Parser "int" Int -> Parser "Anonymous" Simple
 simple p1 p2 p3 = Simple <$> coerce p1 <*> coerce p2 <*> coerce p3
 
 optionParsers =
-  field @"hello" @Text
-    <: field @"repeat" @Int
-    <: field @"quiet" @Bool
+  field @"text" @Text
+    <: field @"int" @Int
+    <: field @"bool" @Bool
     <: fun defaultFieldOptions
     <: decoders
 
