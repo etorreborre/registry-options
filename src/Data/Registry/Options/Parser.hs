@@ -104,32 +104,20 @@ parseWith os defaultValue activeValue d =
     case getName o of
       -- named option or switch
       Just n ->
-        case findOptionValues n (_cardinality o) lexed of
+        case findOptionValues n lexed of
           Nothing ->
             returnDefaultValue
-          Just [] ->
-            if any (sameName n) lexed
-              then returnActiveValue
-              else returnDefaultValue
-          Just ls ->
-            decode d (unlexValues ls)
+          Just Nothing ->
+            returnActiveValue
+          Just (Just v) ->
+            decode d v
       -- arguments
       Nothing -> do
         let args =
               if any isDoubleDash lexed
                 then drop 1 $ dropWhile (not . isDoubleDash) lexed
-                else drop 1 $ dropWhile (not . isArgValue) lexed
-        case _cardinality o of
-          Zero ->
-            returnDefaultValue
-          One ->
-            case args of
-              [] ->
-                Left $ "missing value for argument: " <> display o
-              v : _ ->
-                decode d (unlexValues [v])
-          Many ->
-            decode d (unlexValues args)
+                else drop (if not $ all isArgValue lexed then 1 else 0) $ dropWhile (not . isArgValue) lexed
+        decode d (unlexValues args)
   where
     o = mconcat os
 

@@ -80,15 +80,8 @@ test_parse_constructor = test "parse a constructor" $ do
   parse p "-b --text eric --int -- file1" === Right (Constructor1 "eric" True 10 file1)
 
 test_parse_many_arguments = test "parse options and arguments with repeated values" $ do
-  let parsers' =
-        fun simpleRepeated
-          <: option @"text" @[Text]
-          <: option @"int" @[Int]
-          <: option @"bool" @Bool
-          <: optionParsers
-
-  let p = getParser @SimpleRepeated parsers'
-  parse p "eric etorreborre -q --repeat 10 12" === Right (SimpleRepeated ["eric", "etorreborre"] True [10, 12])
+  let p = make @(Parser "files" [File]) (argument @"files" @[File] <: defaults)
+  parse p "file1 file2" === Right [File "file1", File "file2"]
 
 test_parse_follow_arguments = test "all values after -- are considered as arguments" $ do
   let parsers' =
@@ -128,7 +121,7 @@ test_parse_alternatives = test "parse alternative options and arguments" $ do
   parse p "-q" === Right (SimpleAlternative1 True)
   parse p "hello" === Right (SimpleAlternative2 "hello")
 
-  findOptionValues (LongOnly "repeat") One [FlagName "repeat", ArgValue "10"] === Just [ArgValue "10"]
+  findOptionValues (LongOnly "repeat") [FlagName "repeat", ArgValue "10"] === Just (Just "10")
   parse p "--repeat 10" === Right (SimpleAlternative3 10)
 
 -- * HELPERS
@@ -160,6 +153,7 @@ decoders =
     <: maybeOf @Int
     <: maybeOf @Bool
     <: maybeOf @Text
+    <: manyOf @File
     <: funTo @Decoder File
     <: addDecoder D.intDecoder
     <: addDecoder D.boolDecoder
@@ -183,7 +177,7 @@ data SimpleAlternative
 simpleAlternative :: Parser Anonymous Bool -> Parser Anonymous Text -> Parser Anonymous Int -> Parser Anonymous SimpleAlternative
 simpleAlternative p1 p2 p3 = (SimpleAlternative1 <$> p1) <|> (SimpleAlternative2 <$> p2) <|> (SimpleAlternative3 <$> p3)
 
-newtype File = File { _filePath :: Text } deriving (Eq, Show)
+newtype File = File {_filePath :: Text} deriving (Eq, Show)
 
 file1 :: File
 file1 = File "file1"
