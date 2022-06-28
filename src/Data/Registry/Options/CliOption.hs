@@ -33,31 +33,17 @@ instance Semigroup Cardinality where
   _ <> other = other
 
 displayCardinality :: Cardinality -> Text
-displayCardinality Zero = " (0)"
-displayCardinality One = " (1)"
-displayCardinality Many = " (*)"
+displayCardinality _ = ""
 
 hasZeroCardinality :: Cardinality -> Bool
 hasZeroCardinality Zero = True
 hasZeroCardinality _ = False
-
-switch :: CliOption
-switch = mempty {_cardinality = Zero}
-
-option :: CliOption
-option = mempty
 
 metavar :: Text -> CliOption
 metavar t = mempty {_metavar = Just t}
 
 name :: Text -> CliOption
 name t = mempty {_name = Just t, _cardinality = One}
-
-text :: CliOption
-text = mempty {_cardinality = One}
-
-int :: CliOption
-int = mempty {_cardinality = One}
 
 short :: Char -> CliOption
 short t = mempty {_shortName = Just t}

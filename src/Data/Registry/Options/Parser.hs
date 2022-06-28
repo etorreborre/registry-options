@@ -56,12 +56,26 @@ parse p = parseLexed p . lexArgs
 parserOf :: forall a b. (ApplyVariadic (Parser Anonymous) a b, Typeable a, Typeable b) => a -> Typed b
 parserOf = funTo @(Parser Anonymous)
 
-field :: forall s a. (KnownSymbol s, Typeable a) => Registry _ _
-field = do
+option :: forall s a. (KnownSymbol s, Typeable a) => Registry _ _
+option = do
   let fieldType = showType @a
   fun (\fieldOptions -> parseField @s @a fieldOptions (Just $ getSymbol @s) fieldType)
-    <+ (if isBool fieldType then createDefaultValue @s @a (toDyn False) else noDefaultValue @s @a)
-    <+ (if isBool fieldType then createActiveValue @s @a (toDyn True) else noActiveValue @s @a)
+    <+ noDefaultValue @s @a
+    <+ noActiveValue @s @a
+
+flag :: forall s a. (KnownSymbol s, Typeable a) => a -> Maybe a -> Registry _ _
+flag activeValue defaultValue = do
+  let fieldType = showType @a
+  fun (\fieldOptions -> parseField @s @a fieldOptions (Just $ getSymbol @s) fieldType)
+    <+ maybe (noDefaultValue @s @a) (createDefaultValue @s @a . toDyn) defaultValue
+    <+ createActiveValue @s @a (toDyn activeValue)
+
+switch :: forall s. (KnownSymbol s) => Registry _ _
+switch = do
+  let fieldType = showType @Bool
+  fun (\fieldOptions -> parseField @s @Bool fieldOptions (Just $ getSymbol @s) fieldType)
+    <+ createDefaultValue @s @Bool (toDyn False)
+    <+ createActiveValue @s @Bool (toDyn True)
 
 argument :: forall s a. (KnownSymbol s, Typeable a) => Registry _ _
 argument = do
@@ -72,20 +86,17 @@ argument = do
 
 anonymous :: forall a. (Typeable a) => Registry _ _
 anonymous =
-  fun (\fieldOptions -> parseWith @Anonymous @a [metavar $ makeMetavar fieldOptions (showType @a)])
+  fun (\fieldOptions -> parseField @Anonymous @a fieldOptions Nothing (showType @a))
     <+ (noDefaultValue @Anonymous @a)
     <+ (noActiveValue @Anonymous @a)
 
 parseField :: forall s a. (KnownSymbol s, Typeable a) => FieldOptions -> Maybe Text -> Text -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
 parseField fieldOptions Nothing fieldType =
   parseWith [metavar $ makeMetavar fieldOptions fieldType]
-parseField fieldOptions (Just fieldName) fieldType = do
+parseField fieldOptions (Just fieldName) _ = do
   let shortName = makeShortName fieldOptions fieldName
   let longName = toS $ makeLongName fieldOptions fieldName
-  parseWith [if isBool fieldType then switch else option, name longName, short shortName]
-
-isBool :: Text -> Bool
-isBool t = t == ("GHC.Types.Bool" :: Text) || t == ("Bool" :: Text)
+  parseWith [name longName, short shortName]
 
 parseWith :: forall s a. (KnownSymbol s, Typeable a) => [CliOption] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
 parseWith os defaultValue activeValue d =
@@ -95,11 +106,11 @@ parseWith os defaultValue activeValue d =
       Just n ->
         case findOptionValues n (_cardinality o) lexed of
           Nothing ->
-            Left $ "no arguments to decode for " <> display o
+            returnDefaultValue
           Just [] ->
             if any (sameName n) lexed
-              then defaultReturn
-              else missingReturn
+              then returnActiveValue
+              else returnDefaultValue
           Just ls ->
             decode d (unlexValues ls)
       -- arguments
@@ -107,10 +118,10 @@ parseWith os defaultValue activeValue d =
         let args =
               if any isDoubleDash lexed
                 then drop 1 $ dropWhile (not . isDoubleDash) lexed
-                else takeWhile isArgValue lexed
+                else drop 1 $ dropWhile (not . isArgValue) lexed
         case _cardinality o of
           Zero ->
-            missingReturn
+            returnDefaultValue
           One ->
             case args of
               [] ->
@@ -121,10 +132,12 @@ parseWith os defaultValue activeValue d =
             decode d (unlexValues args)
   where
     o = mconcat os
-    defaultReturn = case getActiveValue activeValue of
+
+    returnActiveValue = case getActiveValue activeValue of
       Just def -> pure def
       Nothing -> Left $ "missing active value for argument: " <> display o
-    missingReturn = case getDefaultValue defaultValue of
+
+    returnDefaultValue = case getDefaultValue defaultValue of
       Just def -> pure def
       Nothing -> Left $ "missing default value for argument: " <> display o
 
