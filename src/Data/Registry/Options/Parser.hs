@@ -15,6 +15,7 @@ import Data.Registry.Options.Decoder
 import Data.Registry.Options.DefaultValues
 import Data.Registry.Options.Lexing
 import Data.Registry.Options.TH
+import qualified Data.Text as T
 import GHC.TypeLits
 import Protolude hiding (option)
 import Type.Reflection
@@ -50,7 +51,10 @@ coerceParser :: Parser s a -> Parser Anonymous a
 coerceParser = coerce
 
 parse :: Parser s a -> Text -> Either Text a
-parse p = parseLexed p . lexArgs
+parse p = parseArgs p . fmap T.strip . T.splitOn " "
+
+parseArgs :: Parser s a -> [Text] -> Either Text a
+parseArgs p = parseLexed p . lexArgs
 
 -- | Create a Parser a for a given constructor of type a
 parserOf :: forall a b. (ApplyVariadic (Parser Anonymous) a b, Typeable a, Typeable b) => a -> Typed b

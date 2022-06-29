@@ -10,8 +10,8 @@ data Lexed
   deriving (Eq, Show)
 
 
-lexArgs :: Text -> [Lexed]
-lexArgs = lex. fmap T.strip . T.splitOn " "
+lexArgs :: [Text] -> [Lexed]
+lexArgs = lex . fmap T.strip
 
 lex :: [Text] -> [Lexed]
 lex [] = []

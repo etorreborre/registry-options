@@ -114,14 +114,14 @@ test_parse_optional = test "parse optional options and arguments" $ do
   parse p "" === Right (Constructor1 "eric" True 100 file1)
 
 test_parse_alternatives = test "parse alternative options and arguments" $ do
-  let parsers' =
+  let parsers =
         fun simpleAlternative
           <: anonymous @Text []
           <: flag @"bool" True Nothing []
           <: option @"int" @Int []
           <: defaults
 
-  let p = getParser @SimpleAlternative parsers'
+  let p = getParser @SimpleAlternative parsers
   parse p "" === Left "missing default value for argument: --int, -i"
   parse p "-b" === Right (SimpleAlternative1 True)
   parse p "hello" === Right (SimpleAlternative2 "hello")
