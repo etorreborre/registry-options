@@ -6,6 +6,7 @@ module Test.Data.Registry.Options.ParserSpec where
 import Data.Coerce
 import Data.Registry
 import Data.Registry.Options as D
+import qualified Data.Text as T
 import Protolude hiding (Option, many, one, option, optional)
 import Test.Tasty.Hedgehogx hiding (defaultValue, int, text)
 
@@ -57,6 +58,10 @@ test_parse_switch = test "parse a switch" $ do
 test_parse_argument = test "parse an argument" $ do
   let p = make @(Parser "argument" Text) (argument @"argument" @Text [] <: defaults)
   parse p "eric" === Right "eric"
+
+test_parse_several_arguments = test "parse several arguments " $ do
+  let p = make @(Parser Anonymous Copy) (anonymous @Copy [] <: fun copyDecoder <: defaults)
+  parse p "source target" === Right (Copy "source" "target")
 
 test_parse_constructor = test "parse a constructor" $ do
   let parsers =
@@ -166,3 +171,13 @@ newtype File = File {_filePath :: Text} deriving (Eq, Show)
 
 file1 :: File
 file1 = File "file1"
+
+-- COPY EXAMPLE for 2 arguments
+
+data Copy = Copy {source :: Text, target :: Text} deriving (Eq, Show)
+
+copyDecoder :: Decoder Copy
+copyDecoder = Decoder $ \ts ->
+  case T.strip <$> T.splitOn " " ts of
+    [s, t] -> Right $ Copy s t
+    _ -> Left $ "expected a source and a target path in: " <> ts
