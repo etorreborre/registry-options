@@ -67,15 +67,15 @@ flag :: forall s a. (KnownSymbol s, Typeable a) => a -> Maybe a -> [CliOption] -
 flag activeValue defaultValue os = do
   let fieldType = showType @a
   fun (\fieldOptions -> parseField @s @a fieldOptions (Just $ getSymbol @s) fieldType os)
-    <+ maybe (noDefaultValue @s @a) (createDefaultValue @s @a . toDyn) defaultValue
-    <+ createActiveValue @s @a (toDyn activeValue)
+    <+ maybe (noDefaultValue @s @a) (setDefaultValue @s @a) defaultValue
+    <+ setActiveValue @s @a activeValue
 
 switch :: forall s. (KnownSymbol s) => [CliOption] -> Registry _ _
 switch os = do
   let fieldType = showType @Bool
   fun (\fieldOptions -> parseField @s @Bool fieldOptions (Just $ getSymbol @s) fieldType os)
-    <+ createDefaultValue @s @Bool (toDyn False)
-    <+ createActiveValue @s @Bool (toDyn True)
+    <+ setDefaultValue @s False
+    <+ setActiveValue @s True
 
 argument :: forall s a. (KnownSymbol s, Typeable a) => [CliOption] -> Registry _ _
 argument os = do
@@ -89,6 +89,12 @@ anonymous os =
   fun (\fieldOptions -> parseField @Anonymous @a fieldOptions Nothing (showType @a) os)
     <+ (noDefaultValue @Anonymous @a)
     <+ (noActiveValue @Anonymous @a)
+
+setActiveValue :: forall s a. (KnownSymbol s, Typeable a) => a -> Typed (ActiveValue s a)
+setActiveValue = createActiveValue @s @a . toDyn
+
+setDefaultValue :: forall s a. (KnownSymbol s, Typeable a) => a -> Typed (DefaultValue s a)
+setDefaultValue = createDefaultValue @s @a . toDyn
 
 parseField :: forall s a. (KnownSymbol s, Typeable a) => FieldOptions -> Maybe Text -> Text -> [CliOption] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
 parseField fieldOptions Nothing fieldType os =
@@ -117,7 +123,9 @@ parseWith os defaultValue activeValue d =
               if any isDoubleDash lexed
                 then drop 1 $ dropWhile (not . isDoubleDash) lexed
                 else drop (if not $ all isArgValue lexed then 1 else 0) $ dropWhile (not . isArgValue) lexed
-        decode d (unlexValues args)
+        case unlexValues args of
+          "" -> returnDefaultValue
+          other -> decode d other
   where
     o = mconcat os
 

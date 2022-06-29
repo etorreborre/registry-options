@@ -93,30 +93,25 @@ test_parse_many_arguments = test "parse options and arguments with repeated valu
   let p = make @(Parser "files" [File]) (argument @"files" @[File] [] <: defaults)
   parse p "file1 file2" === Right [File "file1", File "file2"]
 
-test_parse_follow_arguments = test "all values after -- are considered as arguments" $ do
-  let parsers' =
-        fun simpleRepeated
-          <: option @"text" @[Text] []
-          <: option @"int" @[Int] []
-          <: option @"bool" @Bool []
-          <: optionParsers
-
-  let args = "-q --repeat 10 12 -- eric etorreborre"
-  lexArgs args === [FlagName "q", FlagName "repeat", ArgValue "10", ArgValue "12", DoubleDash, ArgValue "eric", ArgValue "etorreborre"]
-
-  let p = getParser @SimpleRepeated parsers'
-  parse p args === Right (SimpleRepeated ["eric", "etorreborre"] True [10, 12])
-
 test_parse_optional = test "parse optional options and arguments" $ do
-  let parsers' =
-        parserOf SimpleOptional
-          <: anonymous @(Maybe Text) []
-          <: anonymous @(Maybe Bool) []
-          <: anonymous @(Maybe Int) []
-          <: optionParsers
+  let parsers =
+        fun constructor1
+          <: setDefaultValue @"text" @Text "eric"
+          <: setDefaultValue @"int" @Int 100
+          <: setDefaultValue @"bool" True
+          <: setDefaultValue @"file" (File "file1")
+          --
+          <: option @"text" @Text []
+          <: flag @"int" @Int 10 Nothing []
+          <: switch @"bool" []
+          <: argument @"file" @File []
+          <: defaults
 
-  let p = getParser @SimpleOptional parsers'
-  parse p "" === Right (SimpleOptional Nothing Nothing Nothing)
+  let p = getParser @Constructor1 parsers
+
+  -- the order of options does not matter
+  -- but the convention is that options go before arguments
+  parse p "" === Right (Constructor1 "eric" True 100 file1)
 
 test_parse_alternatives = test "parse alternative options and arguments" $ do
   let parsers' =
@@ -138,9 +133,6 @@ test_parse_alternatives = test "parse alternative options and arguments" $ do
 
 getParser :: forall a. (Typeable a) => Registry _ _ -> Parser Anonymous a
 getParser = make @(Parser Anonymous a)
-
-simpleRepeated :: Parser "text" [Text] -> Parser "bool" Bool -> Parser "int" [Int] -> Parser "Anonymous" SimpleRepeated
-simpleRepeated p1 p2 p3 = SimpleRepeated <$> coerce p1 <*> coerce p2 <*> coerce p3
 
 constructor1 :: Parser "text" Text -> Parser "bool" Bool -> Parser "int" Int -> Parser "file" File -> Parser "Anonymous" Constructor1
 constructor1 p1 p2 p3 p4 = Constructor1 <$> coerce p1 <*> coerce p2 <*> coerce p3 <*> coerce p4
