@@ -117,17 +117,17 @@ test_parse_alternatives = test "parse alternative options and arguments" $ do
   let parsers' =
         fun simpleAlternative
           <: anonymous @Text []
-          <: anonymous @Bool []
-          <: anonymous @Int []
-          <: optionParsers
+          <: flag @"bool" True Nothing []
+          <: option @"int" @Int []
+          <: defaults
 
   let p = getParser @SimpleAlternative parsers'
-  parse p "" === Left "no arguments to decode for --repeat (1)"
-  parse p "-q" === Right (SimpleAlternative1 True)
+  parse p "" === Left "missing default value for argument: --int, -i"
+  parse p "-b" === Right (SimpleAlternative1 True)
   parse p "hello" === Right (SimpleAlternative2 "hello")
 
   findOptionValues (LongOnly "repeat") [FlagName "repeat", ArgValue "10"] === Just (Just "10")
-  parse p "--repeat 10" === Right (SimpleAlternative3 10)
+  parse p "--int 10" === Right (SimpleAlternative3 10)
 
 -- * HELPERS
 
@@ -137,24 +137,13 @@ getParser = make @(Parser Anonymous a)
 constructor1 :: Parser "text" Text -> Parser "bool" Bool -> Parser "int" Int -> Parser "file" File -> Parser "Anonymous" Constructor1
 constructor1 p1 p2 p3 p4 = Constructor1 <$> coerce p1 <*> coerce p2 <*> coerce p3 <*> coerce p4
 
-optionParsers =
-  option @"text" @Text []
-    <: option @"int" @Int []
-    <: option @"bool" @Bool []
-    <: fun defaultFieldOptions
-    <: decoders
-
-defaults =
-  fun defaultFieldOptions
-    <: decoders
+defaults = fun defaultFieldOptions <: decoders
 
 decoders =
   manyOf @Int
     <: manyOf @Bool
     <: manyOf @Text
     <: maybeOf @Int
-    <: maybeOf @Bool
-    <: maybeOf @Text
     <: manyOf @File
     <: funTo @Decoder File
     <: addDecoder D.intDecoder
@@ -164,20 +153,14 @@ decoders =
 data Constructor1 = Constructor1 Text Bool Int File
   deriving (Eq, Show)
 
-data SimpleRepeated = SimpleRepeated [Text] Bool [Int]
-  deriving (Eq, Show)
-
-data SimpleOptional = SimpleOptional (Maybe Text) (Maybe Bool) (Maybe Int)
-  deriving (Eq, Show)
-
 data SimpleAlternative
   = SimpleAlternative1 Bool
   | SimpleAlternative2 Text
   | SimpleAlternative3 Int
   deriving (Eq, Show)
 
-simpleAlternative :: Parser Anonymous Bool -> Parser Anonymous Text -> Parser Anonymous Int -> Parser Anonymous SimpleAlternative
-simpleAlternative p1 p2 p3 = (SimpleAlternative1 <$> p1) <|> (SimpleAlternative2 <$> p2) <|> (SimpleAlternative3 <$> p3)
+simpleAlternative :: Parser "bool" Bool -> Parser Anonymous Text -> Parser "int" Int -> Parser Anonymous SimpleAlternative
+simpleAlternative p1 p2 p3 = (SimpleAlternative1 <$> coerce p1) <|> (SimpleAlternative2 <$> coerce p2) <|> (SimpleAlternative3 <$> coerce p3)
 
 newtype File = File {_filePath :: Text} deriving (Eq, Show)
 
