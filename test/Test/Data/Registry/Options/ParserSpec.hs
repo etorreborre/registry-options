@@ -59,10 +59,6 @@ test_parse_argument = test "parse an argument" $ do
   let p = make @(Parser "argument" Text) (argument @"argument" @Text [] <: defaults)
   parse p "eric" === Right "eric"
 
-test_parse_several_arguments = test "parse several arguments " $ do
-  let p = make @(Parser Anonymous Copy) (anonymous @Copy [] <: fun copyDecoder <: defaults)
-  parse p "source target" === Right (Copy "source" "target")
-
 test_parse_constructor = test "parse a constructor" $ do
   let parsers =
         fun constructor1
@@ -76,13 +72,11 @@ test_parse_constructor = test "parse a constructor" $ do
 
   -- the order of options does not matter
   -- but the convention is that options go before arguments
-  parse p "-b --int --text eric file1" === Right (Constructor1 "eric" True 10 file1)
+  -- parse p "-b --int --text eric file1" === Right (Constructor1 "eric" True 10 file1)
+  parse p "-b --text eric --int file1" === Right (Constructor1 "eric" True 100 file1)
 
-  annotateShow "this is an ambiguous parse because 'int' has an active value"
-  parse p "-b --text eric --int file1" === Left "cannot read as an Int: file1"
-
-  annotateShow "-- can be used to separate arguments from options"
-  parse p "-b --text eric --int -- file1" === Right (Constructor1 "eric" True 10 file1)
+  -- annotateShow "-- can be used to separate arguments from options"
+  -- parse p "-b --text eric --int -- file1" === Right (Constructor1 "eric" True 10 file1)
 
 test_add_help = test "the help text can be specified for each option, and names can be changed" $ do
   let _parsers =
@@ -134,6 +128,16 @@ test_parse_alternatives = test "parse alternative options and arguments" $ do
   findOptionValues (LongOnly "repeat") [FlagName "repeat", ArgValue "10"] === Just (Just "10")
   parse p "--int 10" === Right (SimpleAlternative3 10)
 
+test_parse_command = test "parse a command " $ do
+  let p =
+        make @(Parser Anonymous Copy) $
+          fun (copyCommand "copy")
+            <: switch @"force" []
+            <: positional @"source" @Text 0 []
+            <: positional @"target" @Text 1 []
+            <: defaults
+  parse p "copy -f source target" === Right (Copy True "source" "target")
+
 -- * HELPERS
 
 getParser :: forall a. (Typeable a) => Registry _ _ -> Parser Anonymous a
@@ -174,10 +178,23 @@ file1 = File "file1"
 
 -- COPY EXAMPLE for 2 arguments
 
-data Copy = Copy {source :: Text, target :: Text} deriving (Eq, Show)
+data Copy = Copy
+  { _force :: Bool,
+    _source :: Text,
+    _target :: Text
+  }
+  deriving (Eq, Show)
 
-copyDecoder :: Decoder Copy
-copyDecoder = Decoder $ \ts ->
+copyArgumentsDecoder :: Decoder (Text, Text)
+copyArgumentsDecoder = Decoder $ \ts ->
   case T.strip <$> T.splitOn " " ts of
-    [s, t] -> Right $ Copy s t
+    [s, t] -> Right (s, t)
     _ -> Left $ "expected a source and a target path in: " <> ts
+
+copyCommand :: Text -> Parser "force" Bool -> Parser "source" Text -> Parser "target" Text  -> Parser Anonymous Copy
+copyCommand commandName p1 p2 p3 = Parser $ \case
+  ls@(n : _)
+    | ArgValue commandName == n ->
+        parseLexed (Copy <$> coerce p1 <*> coerce p2 <*> coerce p3) ls
+  _ ->
+    Left $ "command not found, expected: " <> commandName

@@ -88,6 +88,18 @@ argument os = do
     <+ noDefaultValue @s @a
     <+ noActiveValue @s @a
 
+positional :: forall s a. (KnownSymbol s, Typeable a) => Int -> [CliOption] -> Registry _ _
+positional n os = do
+  let p fieldOptions = \dv av d -> Parser @s @a $ \lexed -> do
+        let fieldType = showType @a
+        -- temporary fix
+        let args = reverse . takeWhile isArgValue . reverse $ lexed -- getArguments lexed
+        let ls = take 1 . drop n $ args
+        parseLexed (parseField @s @a fieldOptions Nothing fieldType os dv av d) ls
+  fun p
+    <+ noDefaultValue @s @a
+    <+ noActiveValue @s @a
+
 anonymous :: forall a. (Typeable a) => [CliOption] -> Registry _ _
 anonymous os =
   fun (\fieldOptions -> parseField @Anonymous @a fieldOptions Nothing (showType @a) os)
@@ -120,14 +132,14 @@ parseWith os defaultValue activeValue d =
           Just Nothing ->
             returnActiveValue
           Just (Just v) ->
-            decode d v
+            case getActiveValue activeValue of
+              Just active ->
+                pure active
+              Nothing ->
+                decode d v
       -- arguments
-      Nothing -> do
-        let args =
-              if any isDoubleDash lexed
-                then drop 1 $ dropWhile (not . isDoubleDash) lexed
-                else drop (if not $ all isArgValue lexed then 1 else 0) $ dropWhile (not . isArgValue) lexed
-        case unlexValues args of
+      Nothing ->
+        case unlexValues $ getArguments lexed of
           "" -> returnDefaultValue
           other -> decode d other
   where
@@ -141,16 +153,14 @@ parseWith os defaultValue activeValue d =
       Just def -> pure def
       Nothing -> Left $ "missing default value for argument: " <> display o
 
-command :: Text -> (a -> b) -> Parser s a -> Parser s b
-command commandName constructor p = Parser $ \case
-  (n : rest)
-    | ArgValue commandName == n ->
-      fmap constructor (parseLexed p rest)
-  _ ->
-    Left $ "command not found. Expected: " <> commandName
-
 getSymbol :: forall s. (KnownSymbol s) => Text
 getSymbol = toS $ symbolVal @s Proxy
 
 showType :: forall a. Typeable a => Text
 showType = show $ someTypeRep (Proxy :: Proxy a)
+
+getArguments :: [Lexed] -> [Lexed]
+getArguments lexed =
+  if any isDoubleDash lexed
+    then drop 1 $ dropWhile (not . isDoubleDash) lexed
+    else drop (if not $ all isArgValue lexed then 1 else 0) $ dropWhile (not . isArgValue) lexed

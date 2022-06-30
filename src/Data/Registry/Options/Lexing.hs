@@ -11,7 +11,7 @@ data Lexed
 
 
 lexArgs :: [Text] -> [Lexed]
-lexArgs = lex . fmap T.strip
+lexArgs = lex . filter (not . T.null) . fmap T.strip
 
 lex :: [Text] -> [Lexed]
 lex [] = []
