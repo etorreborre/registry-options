@@ -23,22 +23,22 @@ import Type.Reflection
 type Anonymous = "Anonymous"
 
 newtype Parser (s :: Symbol) a = Parser
-  { parseLexed :: [Lexed] -> Either Text a
+  { parseLexed :: [Lexed] -> Either Text (a, [Lexed])
   }
   deriving (Functor)
 
 instance Applicative (Parser s) where
-  pure a = Parser (const (Right a))
-  Parser f <*> Parser fa = Parser $ \lexed -> do
-    l <- f lexed
-    a <- fa lexed
-    pure (l a)
+  pure a = Parser (\ls -> Right (a, ls))
+  Parser f <*> Parser fa = Parser $ \ls -> do
+    (l, ls1) <- f ls
+    (a, ls2) <- fa ls1
+    pure (l a, ls2)
 
 instance Monad (Parser s) where
   return = pure
-  p >>= f = Parser $ \lexed -> do
-    a <- parseLexed p lexed
-    parseLexed (f a) lexed
+  p >>= f = Parser $ \ls -> do
+    (a, ls1) <- parseLexed p ls
+    parseLexed (f a) ls1
 
 instance Alternative (Parser s) where
   empty = Parser (const $ Left "nothing to parse")
@@ -54,20 +54,20 @@ parse :: Parser s a -> Text -> Either Text a
 parse p = parseArgs p . fmap T.strip . T.splitOn " "
 
 parseArgs :: Parser s a -> [Text] -> Either Text a
-parseArgs p = parseLexed p . lexArgs
+parseArgs p = fmap fst . parseLexed p . lexArgs
 
 -- | Create a Parser a for a given constructor of type a
 parserOf :: forall a b. (ApplyVariadic (Parser Anonymous) a b, Typeable a, Typeable b) => a -> Typed b
 parserOf = funTo @(Parser Anonymous)
 
-option :: forall s a. (KnownSymbol s, Typeable a) => [CliOption] -> Registry _ _
+option :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> Registry _ _
 option os = do
   let fieldType = showType @a
   fun (\fieldOptions -> parseField @s @a fieldOptions (Just $ getSymbol @s) fieldType os)
     <+ noDefaultValue @s @a
     <+ noActiveValue @s @a
 
-flag :: forall s a. (KnownSymbol s, Typeable a) => a -> Maybe a -> [CliOption] -> Registry _ _
+flag :: forall s a. (KnownSymbol s, Typeable a, Show a) => a -> Maybe a -> [CliOption] -> Registry _ _
 flag activeValue defaultValue os = do
   let fieldType = showType @a
   fun (\fieldOptions -> parseField @s @a fieldOptions (Just $ getSymbol @s) fieldType os)
@@ -81,26 +81,29 @@ switch os = do
     <+ setDefaultValue @s False
     <+ setActiveValue @s True
 
-argument :: forall s a. (KnownSymbol s, Typeable a) => [CliOption] -> Registry _ _
+argument :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> Registry _ _
 argument os = do
   let fieldType = showType @a
   fun (\fieldOptions -> parseField @s @a fieldOptions Nothing fieldType os)
     <+ noDefaultValue @s @a
     <+ noActiveValue @s @a
 
-positional :: forall s a. (KnownSymbol s, Typeable a) => Int -> [CliOption] -> Registry _ _
+positional :: forall s a. (KnownSymbol s, Typeable a, Show a) => Int -> [CliOption] -> Registry _ _
 positional n os = do
-  let p fieldOptions = \dv av d -> Parser @s @a $ \lexed -> do
+  let p fieldOptions = \dv av d -> Parser @s @a $ \ls -> do
         let fieldType = showType @a
-        -- temporary fix
-        let args = reverse . takeWhile isArgValue . reverse $ lexed -- getArguments lexed
-        let ls = take 1 . drop n $ args
-        parseLexed (parseField @s @a fieldOptions Nothing fieldType os dv av d) ls
+        -- take element at position n and make sure to keep all the other
+        -- arguments intact because we need their position to parse them
+        let arg = take 1 . drop n $ getArguments ls
+        case parseLexed (parseField @s @a fieldOptions Nothing fieldType os dv av d) arg of
+          Left e -> Left e
+          Right (v, _) -> Right (v, ls)
+
   fun p
     <+ noDefaultValue @s @a
     <+ noActiveValue @s @a
 
-anonymous :: forall a. (Typeable a) => [CliOption] -> Registry _ _
+anonymous :: forall a. (Typeable a, Show a) => [CliOption] -> Registry _ _
 anonymous os =
   fun (\fieldOptions -> parseField @Anonymous @a fieldOptions Nothing (showType @a) os)
     <+ (noDefaultValue @Anonymous @a)
@@ -112,7 +115,7 @@ setActiveValue = createActiveValue @s @a . toDyn
 setDefaultValue :: forall s a. (KnownSymbol s, Typeable a) => a -> Typed (DefaultValue s a)
 setDefaultValue = createDefaultValue @s @a . toDyn
 
-parseField :: forall s a. (KnownSymbol s, Typeable a) => FieldOptions -> Maybe Text -> Text -> [CliOption] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
+parseField :: forall s a. (KnownSymbol s, Typeable a, Show a) => FieldOptions -> Maybe Text -> Text -> [CliOption] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
 parseField fieldOptions Nothing fieldType os =
   parseWith $ [metavar $ makeMetavar fieldOptions fieldType] <> os
 parseField fieldOptions (Just fieldName) _ os = do
@@ -120,28 +123,29 @@ parseField fieldOptions (Just fieldName) _ os = do
   let longName = toS $ makeLongName fieldOptions fieldName
   parseWith $ [name longName, short shortName] <> os
 
-parseWith :: forall s a. (KnownSymbol s, Typeable a) => [CliOption] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
+parseWith :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
 parseWith os defaultValue activeValue d =
-  Parser $ \lexed -> do
+  Parser $ \lexed ->
     case getName o of
       -- named option or switch
-      Just n ->
-        case findOptionValues n lexed of
+      Just n -> do
+        let (value, ls) = findOptionValue n lexed
+        case value of
           Nothing ->
-            returnDefaultValue
+            (,ls) <$> returnDefaultValue
           Just Nothing ->
-            returnActiveValue
+            (,ls) <$> returnActiveValue
           Just (Just v) ->
+            -- if we are dealing with a flag it is possible that
+            -- the value which was retrieved is actually an argument
             case getActiveValue activeValue of
-              Just active ->
-                pure active
-              Nothing ->
-                decode d v
+              Just active -> pure (active, filter (not . sameName n) lexed)
+              Nothing -> (,ls) <$> decode d v
       -- arguments
       Nothing ->
-        case unlexValues $ getArguments lexed of
-          "" -> returnDefaultValue
-          other -> decode d other
+        (,lexed) <$> case getArguments lexed of
+          [] -> returnDefaultValue
+          other -> decode d (unlexValues other)
   where
     o = mconcat os
 

@@ -48,21 +48,22 @@ data Name
   | ShortOnly Text
   deriving (Eq, Show)
 
-findOptionValues :: Name -> [Lexed] -> Maybe (Maybe Text)
-findOptionValues _ [] = Nothing
-findOptionValues n ls = do
+findOptionValue :: Name -> [Lexed] -> (Maybe (Maybe Text), [Lexed])
+findOptionValue _ [] = (Nothing, [])
+findOptionValue n ls = do
+  let before = takeWhile (not . sameName n) ls
   let args = dropWhile (not . sameName n) ls
   case args of
     [_] ->
-      Just Nothing
-    (_ : FlagName _ : _) ->
-      Just Nothing
-    (_ : DoubleDash : _) ->
-      Just Nothing
-    (_ : ArgValue v : _) ->
-      Just (Just v)
+      (Just Nothing, filter (not . sameName n) ls)
+    _ : FlagName _ : _ ->
+      (Just Nothing, filter (not . sameName n) ls)
+    _ : DoubleDash : _ ->
+      (Just Nothing, filter (not . sameName n) ls)
+    _ : ArgValue v : after ->
+      (Just (Just v), before <> after)
     _ ->
-      Nothing
+      (Nothing, ls)
 
 sameName :: Name -> Lexed -> Bool
 sameName (LongShort n s) (FlagName f) = n == f || s == f

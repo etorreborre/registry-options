@@ -27,9 +27,9 @@ test_parse_flag = test "parse a flag" $ do
   -- with no default value
   let p = make @(Parser "int" Int) (flag @"int" @Int 10 Nothing [] <: defaults)
 
-  annotate "a flag can still work as an option"
-  parse p "--int 1" === Right 1
-  parse p "--i 1" === Right 1
+  annotate "a flag cannot work as an option, the active value is always taken"
+  parse p "--int 1" === Right 10
+  parse p "--i 1" === Right 10
 
   annotate "a flag has an active value"
   parse p "--int" === Right 10
@@ -39,9 +39,9 @@ test_parse_flag = test "parse a flag" $ do
 
   -- with a default value
   let p1 = make @(Parser "int" Int) (flag @"int" @Int 10 (Just 100) [] <: defaults)
-  annotate "a flag can still work as an option"
-  parse p1 "--int 1" === Right 1
-  parse p1 "--i 1" === Right 1
+  annotate "a flag cannot work as an option, the active value is always taken"
+  parse p1 "--int 1" === Right 10
+  parse p1 "-i 1" === Right 10
 
   annotate "a flag has an active value"
   parse p1 "--int" === Right 10
@@ -72,11 +72,12 @@ test_parse_constructor = test "parse a constructor" $ do
 
   -- the order of options does not matter
   -- but the convention is that options go before arguments
-  -- parse p "-b --int --text eric file1" === Right (Constructor1 "eric" True 10 file1)
-  parse p "-b --text eric --int file1" === Right (Constructor1 "eric" True 100 file1)
+  parse p "-b --int --text eric file1" === Right (Constructor1 "eric" True 10 file1)
+  parse p "-b --text eric --int file1" === Right (Constructor1 "eric" True 10 file1)
+  parse p "-b --text eric file1" === Right (Constructor1 "eric" True 100 file1)
 
-  -- annotateShow "-- can be used to separate arguments from options"
-  -- parse p "-b --text eric --int -- file1" === Right (Constructor1 "eric" True 10 file1)
+  annotateShow "-- can be used to separate arguments from options"
+  parse p "-b --text eric --int -- file1" === Right (Constructor1 "eric" True 10 file1)
 
 test_add_help = test "the help text can be specified for each option, and names can be changed" $ do
   let _parsers =
@@ -125,10 +126,10 @@ test_parse_alternatives = test "parse alternative options and arguments" $ do
   parse p "-b" === Right (SimpleAlternative1 True)
   parse p "hello" === Right (SimpleAlternative2 "hello")
 
-  findOptionValues (LongOnly "repeat") [FlagName "repeat", ArgValue "10"] === Just (Just "10")
+  findOptionValue (LongOnly "repeat") [FlagName "repeat", ArgValue "10"] === (Just (Just "10"), [])
   parse p "--int 10" === Right (SimpleAlternative3 10)
 
-test_parse_command = test "parse a command " $ do
+test_parse_command = test "parse a command" $ do
   let p =
         make @(Parser Anonymous Copy) $
           fun (copyCommand "copy")
@@ -191,10 +192,10 @@ copyArgumentsDecoder = Decoder $ \ts ->
     [s, t] -> Right (s, t)
     _ -> Left $ "expected a source and a target path in: " <> ts
 
-copyCommand :: Text -> Parser "force" Bool -> Parser "source" Text -> Parser "target" Text  -> Parser Anonymous Copy
+copyCommand :: Text -> Parser "force" Bool -> Parser "source" Text -> Parser "target" Text -> Parser Anonymous Copy
 copyCommand commandName p1 p2 p3 = Parser $ \case
-  ls@(n : _)
+  (n : ls)
     | ArgValue commandName == n ->
-        parseLexed (Copy <$> coerce p1 <*> coerce p2 <*> coerce p3) ls
+      parseLexed (Copy <$> coerce p1 <*> coerce p2 <*> coerce p3) ls
   _ ->
     Left $ "command not found, expected: " <> commandName
