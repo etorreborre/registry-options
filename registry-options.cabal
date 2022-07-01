@@ -24,9 +24,10 @@ library
   exposed-modules:
       Data.Registry.Options
       Data.Registry.Options.CliOption
+      Data.Registry.Options.CliParsers
       Data.Registry.Options.Decoder
       Data.Registry.Options.DefaultValues
-      Data.Registry.Options.Lexing
+      Data.Registry.Options.Lexed
       Data.Registry.Options.Parser
       Data.Registry.Options.TH
   other-modules:

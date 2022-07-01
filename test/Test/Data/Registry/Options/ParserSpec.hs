@@ -6,6 +6,7 @@ module Test.Data.Registry.Options.ParserSpec where
 import Data.Coerce
 import Data.Registry
 import Data.Registry.Options as D
+import Data.Registry.Options.Lexed
 import qualified Data.Text as T
 import Protolude hiding (Option, many, one, option, optional)
 import Test.Tasty.Hedgehogx hiding (defaultValue, int, text)
@@ -21,7 +22,7 @@ test_parse_option = test "parse an option" $ do
   let p = make @(Parser "text" Text) (option @"text" @Text [] <: defaults)
   parse p "--t eric" === Right "eric"
   parse p "--text eric" === Right "eric"
-  parse p "--typo eric" === Left "missing default value for argument: --text, -t"
+  parse p "--typo eric" === Left "missing default value for argument: [-t|--text TEXT]"
 
 test_parse_flag = test "parse a flag" $ do
   -- with no default value
@@ -35,7 +36,7 @@ test_parse_flag = test "parse a flag" $ do
   parse p "--int" === Right 10
   parse p "-i" === Right 10
 
-  parse p "--typo" === Left "missing default value for argument: --int, -i"
+  parse p "--typo" === Left "missing default value for argument: [-i|--int INT]"
 
   -- with a default value
   let p1 = make @(Parser "int" Int) (flag @"int" @Int 10 (Just 100) [] <: defaults)
@@ -122,7 +123,7 @@ test_parse_alternatives = test "parse alternative options and arguments" $ do
           <: defaults
 
   let p = getParser @SimpleAlternative parsers
-  parse p "" === Left "missing default value for argument: --int, -i"
+  parse p "" === Left "missing default value for argument: [-i|--int INT]"
   parse p "-b" === Right (SimpleAlternative1 True)
   parse p "hello" === Right (SimpleAlternative2 "hello")
 
