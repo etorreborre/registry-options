@@ -5,7 +5,6 @@ module Data.Registry.Options.TH where
 import Control.Monad.Fail
 import Data.List (elemIndex)
 import Data.String
-import qualified Data.Text as T
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 import Protolude hiding (Type)
@@ -109,7 +108,7 @@ applyParser :: Name -> [Int] -> ExpQ
 applyParser cName [] = appE (varE $ mkName "pure") (conE cName)
 applyParser cName (n : ns) = do
   let cons = appE (varE "pure") (conE cName)
-  foldr (\i r -> appE (appE (varE "ap") r) $ parseAt i) (appE (appE (varE "ap") cons) $ parseAt n) (reverse ns)
+  foldr (\i r -> appE (appE (varE "<*>") r) $ parseAt i) (appE (appE (varE "<*>") cons) $ parseAt n) (reverse ns)
   where
     parseAt i = varE "coerceParser" `appE` varE (mkName $ "p" <> show i)
 

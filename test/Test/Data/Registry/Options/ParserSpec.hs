@@ -6,7 +6,6 @@ module Test.Data.Registry.Options.ParserSpec where
 import Data.Coerce
 import Data.Registry
 import Data.Registry.Options as D
-import Data.Registry.Options.Lexed
 import qualified Data.Text as T
 import Protolude hiding (Option, many, one, option, optional)
 import Test.Tasty.Hedgehogx hiding (defaultValue, int, text)

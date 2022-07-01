@@ -38,12 +38,6 @@ instance Applicative (Parser s) where
     (a, ls2) <- fa ls1
     pure (l a, ls2)
 
-instance Monad (Parser s) where
-  return = pure
-  p >>= f = Parser $ \ls -> do
-    (a, ls1) <- parseLexed p ls
-    parseLexed (f a) ls1
-
 instance Alternative (Parser s) where
   empty = Parser (const $ Left "nothing to parse")
   Parser p1 <|> Parser p2 = Parser $ \lexed ->

@@ -28,6 +28,7 @@ library
       Data.Registry.Options.Decoder
       Data.Registry.Options.DefaultValues
       Data.Registry.Options.FieldOptions
+      Data.Registry.Options.Help
       Data.Registry.Options.Lexed
       Data.Registry.Options.Parser
       Data.Registry.Options.Text
@@ -87,6 +88,7 @@ test-suite spec
       AutoDiscoveredSpecs
       Test.Data.Registry.Options.CommandSpec
       Test.Data.Registry.Options.GitSpec
+      Test.Data.Registry.Options.HelpSpec
       Test.Data.Registry.Options.ParserSpec
       Test.Data.Registry.Options.TemplateHaskellSpec
       Test.Data.Registry.Options.TemplateHaskellTypes
