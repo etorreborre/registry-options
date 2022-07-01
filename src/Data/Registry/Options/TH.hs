@@ -9,22 +9,12 @@ import qualified Data.Text as T
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 import Protolude hiding (Type)
-import qualified Prelude
+import Data.Registry.Options.Text
 
 -- | Make a Parser
 --   Usage: $(makeParser ''MyDataType) <: otherParsers
 makeParser :: Name -> ExpQ
 makeParser = makeParserWith defaultParserOptions
-
-data FieldOptions = FieldOptions
-  { makeShortName :: Text -> Char,
-    makeLongName :: Text -> Text,
-    makeMetavar :: Text -> Text
-  }
-
-defaultFieldOptions :: FieldOptions
-defaultFieldOptions =
-  FieldOptions (Prelude.head . toS . dropQualifier) (hyphenate . dropQualifier) (T.toUpper . dropQualifier)
 
 newtype ParserOptions = ParserOptions
   { makeFieldType :: Maybe Text -> Text
@@ -123,12 +113,6 @@ applyParser cName (n : ns) = do
   where
     parseAt i = varE "coerceParser" `appE` varE (mkName $ "p" <> show i)
 
--- | Drop the leading names in a qualified name
-
----  dropQualifier "x.y.z" === "z"
-dropQualifier :: Text -> Text
-dropQualifier t = fromMaybe t . lastMay $ T.splitOn "." t
-
 -- | Get the types of all the fields of a constructor
 typesOf :: Con -> Q [Type]
 typesOf (NormalC _ types) = pure (snd <$> types)
@@ -183,13 +167,6 @@ appOf operator e1 e2 = infixE (Just e1) (varE (mkName $ toS operator)) (Just e2)
 
 instance IsString Name where
   fromString = mkName
-
-hyphenate :: Text -> Text
-hyphenate = toS . hyphenateString . toS
-
-hyphenateString :: String -> String
-hyphenateString [] = []
-hyphenateString (a : as) = if isUpper a then '-' : toLower a : hyphenateString as else a : hyphenateString as
 
 displayType :: Type -> Text
 displayType = show . getTypeName

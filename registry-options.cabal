@@ -27,8 +27,10 @@ library
       Data.Registry.Options.CliParsers
       Data.Registry.Options.Decoder
       Data.Registry.Options.DefaultValues
+      Data.Registry.Options.FieldOptions
       Data.Registry.Options.Lexed
       Data.Registry.Options.Parser
+      Data.Registry.Options.Text
       Data.Registry.Options.TH
   other-modules:
       Paths_registry_options

@@ -3,7 +3,6 @@
 
 module Data.Registry.Options.CliParsers where
 
-import Data.Coerce
 import Data.Dynamic
 import Data.Registry (Registry, fun, (<+))
 import Data.Registry.Internal.Types (Typed)

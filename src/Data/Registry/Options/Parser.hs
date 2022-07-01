@@ -13,8 +13,8 @@ import Data.Registry.Internal.Types (Typed)
 import Data.Registry.Options.CliOption
 import Data.Registry.Options.Decoder
 import Data.Registry.Options.DefaultValues
+import Data.Registry.Options.FieldOptions
 import Data.Registry.Options.Lexed
-import Data.Registry.Options.TH
 import qualified Data.Text as T
 import GHC.TypeLits
 import Protolude hiding (option)
