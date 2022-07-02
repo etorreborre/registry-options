@@ -7,8 +7,8 @@ import Data.Coerce
 import Data.Registry
 import Data.Registry.Options as D
 import qualified Data.Text as T
-import Protolude hiding (Option, many, one, option, optional)
-import Test.Tasty.Hedgehogx hiding (defaultValue, int, text)
+import Protolude hiding (option)
+import Test.Tasty.Hedgehogx hiding (defaultValue)
 
 test_lexed = test "lex the command line" $ do
   lex ["-o", "--o", "v"] === [FlagName "o", FlagName "o", ArgValue "v"]
@@ -193,7 +193,7 @@ copyArgumentsDecoder = Decoder $ \ts ->
     _ -> Left $ "expected a source and a target path in: " <> ts
 
 copyCommand :: Text -> Parser "force" Bool -> Parser "source" Text -> Parser "target" Text -> Parser Anonymous Copy
-copyCommand commandName p1 p2 p3 = Parser $ \case
+copyCommand commandName p1 p2 p3 = Parser NoHelp $ \case
   (n : ls)
     | ArgValue commandName == n ->
       parseLexed (Copy <$> coerce p1 <*> coerce p2 <*> coerce p3) ls

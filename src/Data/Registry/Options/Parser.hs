@@ -1,7 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 
 module Data.Registry.Options.Parser where
@@ -14,6 +13,7 @@ import Data.Registry.Options.CliOption
 import Data.Registry.Options.Decoder
 import Data.Registry.Options.DefaultValues
 import Data.Registry.Options.FieldOptions
+import Data.Registry.Options.Help
 import Data.Registry.Options.Lexed
 import qualified Data.Text as T
 import GHC.TypeLits
@@ -26,21 +26,24 @@ import Type.Reflection
 --
 --   A Parser generally returns all the original lexed values minus the option name and value just parsed
 --   This is a bit different for positional arguments for example where the whole list of lexed values is kept
-newtype Parser (s :: Symbol) a = Parser
-  { parseLexed :: [Lexed] -> Either Text (a, [Lexed])
+data Parser (s :: Symbol) a = Parser
+  { parserHelp :: Help,
+    parseLexed :: [Lexed] -> Either Text (a, [Lexed])
   }
   deriving (Functor)
 
 instance Applicative (Parser s) where
-  pure a = Parser (\ls -> Right (a, ls))
-  Parser f <*> Parser fa = Parser $ \ls -> do
+  pure a = Parser NoHelp (\ls -> Right (a, ls))
+
+  Parser h1 f <*> Parser h2 fa = Parser (h1 <> h2) $ \ls -> do
     (l, ls1) <- f ls
     (a, ls2) <- fa ls1
     pure (l a, ls2)
 
 instance Alternative (Parser s) where
-  empty = Parser (const $ Left "nothing to parse")
-  Parser p1 <|> Parser p2 = Parser $ \lexed ->
+  empty = Parser NoHelp(const $ Left "nothing to parse")
+
+  Parser h1 p1 <|> Parser h2 p2 = Parser (h1 <> h2) $ \lexed ->
     case p1 lexed of
       Right a -> Right a
       _ -> p2 lexed
@@ -89,7 +92,7 @@ parseField fieldOptions fieldName fieldType os = do
 --     - a Decoder to read the value as text
 parseWith :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
 parseWith os defaultValue activeValue d = do
-  Parser $ \lexed ->
+  Parser (fromCliOption cliOption) $ \lexed ->
     case getName cliOption of
       -- named option, flag or switch
       Just n -> do

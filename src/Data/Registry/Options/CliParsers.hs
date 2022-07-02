@@ -8,8 +8,9 @@ import Data.Registry (Registry, fun, (<+))
 import Data.Registry.Internal.Types (Typed)
 import Data.Registry.Options.CliOption
 import Data.Registry.Options.DefaultValues
-import Data.Registry.Options.Parser
+import Data.Registry.Options.Help
 import Data.Registry.Options.Lexed
+import Data.Registry.Options.Parser
 import GHC.TypeLits
 import Protolude hiding (option)
 
@@ -79,7 +80,7 @@ argument os = do
 --   When the argument is read, its value is left in the list of lexed values
 positional :: forall s a. (KnownSymbol s, Typeable a, Show a) => Int -> [CliOption] -> Registry _ _
 positional n os = do
-  let p fieldOptions = \dv av d -> Parser @s @a $ \ls -> do
+  let p fieldOptions = \dv av d -> Parser @s @a (fromCliOption (mconcat os)) $ \ls -> do
         let fieldType = showType @a
         -- take element at position n and make sure to keep all the other
         -- arguments intact because we need their position to parse them

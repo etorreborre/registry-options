@@ -19,7 +19,7 @@ test_parse_command = test "display a command help" $ do
             <: positional @"target" @File 1 [help "Target path"]
             <: defaults
 
-  displayHelp p
+  displayHelp (parserHelp p)
     === T.unlines
       [ "copy - a utility to copy files",
         "copies a file from SOURCE to TARGET",
@@ -61,7 +61,7 @@ copyArgumentsDecoder = Decoder $ \ts ->
     _ -> Left $ "expected a source and a target path in: " <> ts
 
 copyCommand :: Text -> Parser "force" Bool -> Parser "source" File -> Parser "target" File -> Parser Anonymous Copy
-copyCommand commandName p1 p2 p3 = Parser $ \case
+copyCommand commandName p1 p2 p3 = Parser NoHelp $ \case
   (n : ls)
     | ArgValue commandName == n ->
       parseLexed (Copy <$> coerce p1 <*> coerce p2 <*> coerce p3) ls
