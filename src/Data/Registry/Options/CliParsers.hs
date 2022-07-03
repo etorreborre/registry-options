@@ -4,7 +4,7 @@
 module Data.Registry.Options.CliParsers where
 
 import Data.Dynamic
-import Data.Registry (Registry, fun, (<+))
+import Data.Registry (Registry, fun, val, (<+))
 import Data.Registry.Internal.Types (Typed)
 import Data.Registry.Options.CliOption
 import Data.Registry.Options.DefaultValues
@@ -25,8 +25,7 @@ option :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> Regi
 option os = do
   let fieldType = showType @a
   fun (\fieldOptions -> parseField @s @a fieldOptions (Just $ getSymbol @s) fieldType os)
-    <+ noDefaultValue @s @a
-    <+ noActiveValue @s @a
+    <+ setNoDefaultValues @s @a
 
 -- | Create a flag:
 --     - with a short/long name
@@ -39,8 +38,9 @@ flag :: forall s a. (KnownSymbol s, Typeable a, Show a) => a -> Maybe a -> [CliO
 flag activeValue defaultValue os = do
   let fieldType = showType @a
   fun (\fieldOptions -> parseField @s @a fieldOptions (Just $ getSymbol @s) fieldType os)
-    <+ maybe (noDefaultValue @s @a) (setDefaultValue @s @a) defaultValue
+    <+ maybe noDefaultValue (setDefaultValue @s @a) defaultValue
     <+ setActiveValue @s @a activeValue
+    <+ noParserHelp @s @a
 
 -- | Create a switch:
 --     - with a short/long name
@@ -55,6 +55,7 @@ switch os = do
   fun (\fieldOptions -> parseField @s @Bool fieldOptions (Just $ getSymbol @s) fieldType os)
     <+ setDefaultValue @s False
     <+ setActiveValue @s True
+    <+ noParserHelp @s @Bool
 
 -- | Create an argument:
 --     - with no short/long names
@@ -68,8 +69,7 @@ argument :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> Re
 argument os = do
   let fieldType = showType @a
   fun (\fieldOptions -> parseField @s @a fieldOptions Nothing fieldType os)
-    <+ noDefaultValue @s @a
-    <+ noActiveValue @s @a
+    <+ setNoDefaultValues @s @a
 
 -- | Create a positional argument, to parse the nth value (starting from 0):
 --     - with no short/long names
@@ -87,14 +87,13 @@ positional n os = do
           -- take element at position n and make sure to keep all the other
           -- arguments intact because we need their position to parse them
           let arg = take 1 . drop n $ getArguments ls
-          let argumentParser = parseField @s @a fieldOptions Nothing (showType @a) os dv av d
+          let argumentParser = parseField @s @a fieldOptions Nothing (showType @a) os dv av (ParserHelp mempty) d
           case parseLexed argumentParser arg of
             Left e -> Left e
             Right (v, _) -> Right (v, ls)
 
   fun p
-    <+ noDefaultValue @s @a
-    <+ noActiveValue @s @a
+    <+ setNoDefaultValues @s @a
 
 -- | Create an anonymous argument:
 --     - with no short/long names
@@ -107,8 +106,7 @@ positional n os = do
 anonymous :: forall a. (Typeable a, Show a) => [CliOption] -> Registry _ _
 anonymous os =
   fun (\fieldOptions -> parseField @Anonymous @a fieldOptions Nothing (showType @a) os)
-    <+ (noDefaultValue @Anonymous @a)
-    <+ (noActiveValue @Anonymous @a)
+    <+ setNoDefaultValues @Anonymous @a
 
 -- | Set an active value for a given field name and field type
 setActiveValue :: forall s a. (KnownSymbol s, Typeable a) => a -> Typed (ActiveValue s a)
@@ -117,3 +115,17 @@ setActiveValue = createActiveValue @s @a . toDyn
 -- | Set a default value for a given field name and field type
 setDefaultValue :: forall s a. (KnownSymbol s, Typeable a) => a -> Typed (DefaultValue s a)
 setDefaultValue = createDefaultValue @s @a . toDyn
+
+-- | Allow to specify that a given field name and type has some default/active values
+setDefaultValues :: forall s a. (KnownSymbol s, Typeable a) => Maybe a -> Maybe a -> Registry _ _
+setDefaultValues defaultValue activeValue =
+  maybe (noDefaultValue @s) (setDefaultValue @s) defaultValue
+    <+ maybe (noActiveValue @s) (setActiveValue @s) activeValue
+
+-- | Allow to specify that a given field name and type has no default/active values
+setNoDefaultValues :: forall s a. (KnownSymbol s, Typeable a) => Registry _ _
+setNoDefaultValues =
+  noDefaultValue @s @a
+  <+ noActiveValue @s @a
+  <+ noParserHelp @s @a
+  <+ val (mempty :: [CliOption])

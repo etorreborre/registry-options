@@ -8,6 +8,7 @@ import Data.Registry
 import Data.Registry.Options as D
 import qualified Data.Text as T
 import Protolude hiding (option)
+import Test.Data.Registry.Options.Copy
 import Test.Tasty.Hedgehogx hiding (defaultValue)
 
 test_lexed = test "lex the command line" $ do
@@ -172,19 +173,10 @@ data SimpleAlternative
 simpleAlternative :: Parser "bool" Bool -> Parser Anonymous Text -> Parser "int" Int -> Parser Anonymous SimpleAlternative
 simpleAlternative p1 p2 p3 = (SimpleAlternative1 <$> coerce p1) <|> (SimpleAlternative2 <$> coerce p2) <|> (SimpleAlternative3 <$> coerce p3)
 
-newtype File = File {_filePath :: Text} deriving (Eq, Show)
-
 file1 :: File
 file1 = File "file1"
 
 -- COPY EXAMPLE for 2 arguments
-
-data Copy = Copy
-  { _force :: Bool,
-    _source :: Text,
-    _target :: Text
-  }
-  deriving (Eq, Show)
 
 copyArgumentsDecoder :: Decoder (Text, Text)
 copyArgumentsDecoder = Decoder $ \ts ->

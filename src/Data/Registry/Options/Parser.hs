@@ -79,20 +79,20 @@ parserOf = funTo @(Parser Anonymous)
 --     - an optional default value for the field: the value to use if the field is missing
 --     - an optional active value for the field: the value to use if the field is present
 --     - a Decoder to read the value as text
-parseField :: forall s a. (KnownSymbol s, Typeable a, Show a) => FieldOptions -> Maybe Text -> Text -> [CliOption] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
-parseField fieldOptions fieldName fieldType os = do
+parseField :: forall s a. (KnownSymbol s, Typeable a, Show a) => FieldOptions -> Maybe Text -> Text -> [CliOption] -> DefaultValue s a -> ActiveValue s a -> ParserHelp s a -> Decoder a -> Parser s a
+parseField fieldOptions fieldName fieldType os parserHelp = do
   let shortName = short . makeShortName fieldOptions <$> toList fieldName
   let longName = name . toS . makeLongName fieldOptions <$> toList fieldName
-  parseWith $ shortName <> longName <> [metavar $ makeMetavar fieldOptions fieldType] <> os
+  parseWith (shortName <> longName <> [metavar $ makeMetavar fieldOptions fieldType] <> os) parserHelp
 
 -- | Create a parser for a given field given:
 --     - its name(s)
 --     - an optional default value for the field: the value to use if the field is missing
 --     - an optional active value for the field: the value to use if the field is present
 --     - a Decoder to read the value as text
-parseWith :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
-parseWith os defaultValue activeValue d = do
-  Parser (fromCliOption cliOption) $ \lexed ->
+parseWith :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> DefaultValue s a -> ActiveValue s a -> ParserHelp s a -> Decoder a -> Parser s a
+parseWith os defaultValue activeValue parserHelp d = do
+  Parser (fromCliOption cliOption <> fromParserHelp parserHelp) $ \lexed ->
     case getName cliOption of
       -- named option, flag or switch
       Just n -> do
@@ -110,9 +110,9 @@ parseWith os defaultValue activeValue d = do
               Nothing -> (,ls) <$> decode d v
       -- arguments
       Nothing ->
-        (,lexed) <$> case getArguments lexed of
-          [] -> returnDefaultValue
-          other -> decode d (unlexValues other)
+        case getArguments lexed of
+          [] -> (,lexed) <$> returnDefaultValue
+          other -> (,drop 1 lexed) <$> decode d (unlexValues $ take 1 other)
   where
     cliOption = mconcat os
 

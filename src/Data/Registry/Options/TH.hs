@@ -4,11 +4,11 @@ module Data.Registry.Options.TH where
 
 import Control.Monad.Fail
 import Data.List (elemIndex)
+import Data.Registry.Options.Text
 import Data.String
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 import Protolude hiding (Type)
-import Data.Registry.Options.Text
 
 -- | Make a Parser
 --   Usage: $(makeParser ''MyDataType) <: otherParsers
@@ -32,22 +32,28 @@ makeParserWith parserOptions typeName = do
       let fieldNameType = fieldNameTypeT parserOptions Nothing
       let parser = lamE [sigP (varP "p") (conT "Parser" `appT` fieldNameType `appT` pure fieldType)] (appE (appE (varE "fmap") (conE cName)) (varE "p"))
       let fieldParser = makeFieldParser parserOptions Nothing fieldType
-      addToRegistry [funOf parser, fieldParser]
+      addToRegistry [funOf parser, fieldParser, makeNoDefaultValues parserOptions Nothing fieldType]
     TyConI (NewtypeD _context _name _typeVars _kind (RecC constructor [(fieldName, _, fieldType)]) _deriving) -> do
       -- \(p::Parser fieldName OldType) -> fmap NewType p
       let cName = mkName $ show constructor
       let fieldNameType = fieldNameTypeT parserOptions (Just fieldName)
       let parser = lamE [sigP (varP "p") (conT "Parser" `appT` fieldNameType `appT` pure fieldType)] (appE (appE (varE "fmap") (conE cName)) (varE "p"))
       let fieldParser = makeFieldParser parserOptions (Just fieldName) fieldType
-      addToRegistry [funOf parser, fieldParser]
+      addToRegistry [funOf parser, fieldParser, makeNoDefaultValues parserOptions (Just fieldName) fieldType]
     TyConI (DataD _context _name _typeVars _kind constructors _deriving) -> do
       case constructors of
         [c] -> do
           fs <- fieldsOf c
-          addToRegistry $ [funOf $ makeConstructorParser parserOptions typeName c] <> (uncurry (makeFieldParser parserOptions) <$> fs)
+          addToRegistry $
+            [funOf $ makeConstructorParser parserOptions typeName c]
+              <> (uncurry (makeFieldParser parserOptions) <$> fs)
+              <> (uncurry (makeNoDefaultValues parserOptions) <$> fs)
         c : cs -> do
           fs <- for (c : cs) fieldsOf
-          addToRegistry $ [funOf $ makeConstructorsParser parserOptions typeName (c : cs)] <> (uncurry (makeFieldParser parserOptions) <$> concat fs)
+          addToRegistry $
+            [funOf $ makeConstructorsParser parserOptions typeName (c : cs)]
+              <> (uncurry (makeFieldParser parserOptions) <$> concat fs)
+              <> (uncurry (makeNoDefaultValues parserOptions) <$> concat fs)
         [] -> do
           qReport True "can not make a Parser for a data type with no constructors"
           fail "parser creation failed: cannot create a parser for a data type with no constructors"
@@ -58,7 +64,7 @@ makeParserWith parserOptions typeName = do
 addToRegistry :: [ExpQ] -> ExpQ
 addToRegistry [] = fail "parsers creation failed"
 addToRegistry [g] = g
-addToRegistry (g : gs) = appOf "<+" g (addToRegistry gs)
+addToRegistry (g : gs) = g `append` addToRegistry gs
 
 funOf :: ExpQ -> ExpQ
 funOf = appE (varE (mkName "fun"))
@@ -80,7 +86,7 @@ makeConstructorParser parserOptions typeName c = do
 -- | Make a Parser for a several Constructors, where each field of each the constructor is parsed separately
 --   and an alternative is taken between all the parsers
 --   \(os: FieldOptions) (p0::Parser fieldName1 Text) (p1::Parser fieldName1 Bool) (p2::Parser fieldName2 Bool) ->
---      (Constructor1 <$> coerceParser p0 <*> coerceParser p1) <|>  (Constructor2 <$> coerceParser p1 <*> coerceParser p3)
+--      (Constructor1 <$> coerceParser p0 <*> coerceParser p1) <|> (Constructor2 <$> coerceParser p1 <*> coerceParser p3)
 makeConstructorsParser :: ParserOptions -> Name -> [Con] -> ExpQ
 makeConstructorsParser parserOptions typeName cs = do
   -- take the fields of all the constructors
@@ -155,11 +161,15 @@ makeFieldParser parserOptions mFieldName fieldType = do
           `appE` stringE (toS $ displayType fieldType)
       )
 
+makeNoDefaultValues :: ParserOptions -> Maybe Name -> Type -> ExpQ
+makeNoDefaultValues parserOptions mFieldName fieldType =
+  varE "setNoDefaultValues" `appTypeE` fieldNameTypeT parserOptions mFieldName `appTypeE` pure fieldType
+
 fieldNameTypeT :: ParserOptions -> Maybe Name -> Q Type
 fieldNameTypeT parserOptions mFieldName = litT . strTyLit . toS $ makeFieldType parserOptions (show <$> mFieldName)
 
-app :: ExpQ -> ExpQ -> ExpQ
-app = appOf "<+"
+append :: ExpQ -> ExpQ -> ExpQ
+append = appOf "<+"
 
 appOf :: Text -> ExpQ -> ExpQ -> ExpQ
 appOf operator e1 e2 = infixE (Just e1) (varE (mkName $ toS operator)) (Just e2)

@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Test.Data.Registry.Options.HelpSpec where
 
@@ -8,6 +9,7 @@ import Data.Registry
 import Data.Registry.Options
 import qualified Data.Text as T
 import Protolude
+import Test.Data.Registry.Options.Copy
 import Test.Tasty.Hedgehogx
 
 test_command_help = test "display a command help" $ do
@@ -15,8 +17,33 @@ test_command_help = test "display a command help" $ do
         make @(Parser Anonymous Copy) $
           fun (copyCommand "copy" "a utility to copy files" "copies a file from SOURCE to TARGET")
             <: switch @"force" [help "Force the copy even if a file already exists with the same name"]
-            <: positional @"source" @File 0 [metavar "SOURCE", help "Source path"]
-            <: positional @"target" @File 1 [metavar "TARGET", help "Target path"]
+            <: argument @"source" @File [metavar "SOURCE", help "Source path"]
+            <: argument @"target" @File [metavar "TARGET", help "Target path"]
+            <: defaults
+
+  parse p "copy -f source target" === Right (Copy True "source" "target")
+
+  displayHelp (parserHelp p)
+    === T.unlines
+      [ "copy - a utility to copy files",
+        "",
+        "  copies a file from SOURCE to TARGET",
+        "",
+        "Usage: copy -f SOURCE TARGET",
+        "",
+        "Available options:",
+        "  -f,--force BOOL          Force the copy even if a file already exists with the same name",
+        "  SOURCE                   Source path",
+        "  TARGET                   Target path"
+      ]
+
+test_command_help_th = test "display a command help, using TH" $ do
+  let p =
+        make @(Parser Anonymous Copy) $
+          setHelp @"force" @Bool "Force the copy even if a file already exists with the same name"
+            <+ setHelp @"source" @File "Source path"
+            <+ setHelp @"target" @File "Target path"
+            <+ $(makeParser ''Copy)
             <: defaults
 
   displayHelp (parserHelp p)
@@ -35,7 +62,9 @@ test_command_help = test "display a command help" $ do
 
 -- * HELPERS
 
-defaults = fun defaultFieldOptions <: decoders
+defaults =
+  fun defaultFieldOptions
+    <: decoders
 
 decoders =
   manyOf @Int
@@ -46,17 +75,6 @@ decoders =
     <: addDecoder intDecoder
     <: addDecoder boolDecoder
     <: addDecoder textDecoder
-
--- COPY EXAMPLE for 2 arguments
-
-data Copy = Copy
-  { _force :: Bool,
-    _source :: File,
-    _target :: File
-  }
-  deriving (Eq, Show)
-
-newtype File = File {_filePath :: Text} deriving (Eq, Show)
 
 copyArgumentsDecoder :: Decoder (File, File)
 copyArgumentsDecoder = Decoder $ \ts ->

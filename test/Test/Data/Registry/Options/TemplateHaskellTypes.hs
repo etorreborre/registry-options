@@ -18,3 +18,8 @@ data ConstructorWithFields = ConstructorWithFields
 data ConstructorsWithFields
   = Constructor1WithFields {constructor1WithFieldsText :: Text, constructor1WithFieldsBool :: Bool}
   | Constructor2WithFields {constructor2WithFieldsInt :: Int, constructor2WithFieldsBool :: Bool}
+
+data Files
+  = Copy {from :: Text, to :: Text}
+  | Move {from :: Text, to :: Text}
+  deriving (Eq, Show)

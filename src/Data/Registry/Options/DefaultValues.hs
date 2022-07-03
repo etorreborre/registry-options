@@ -9,14 +9,10 @@ import Data.Registry.Internal.Types
 import Protolude
 
 -- | Contain an optional value to return when an option is missing
-newtype DefaultValue (s :: Symbol) a = DefaultValue
-  { _defaultValue :: Maybe Dynamic
-  }
+newtype DefaultValue (s :: Symbol) a = DefaultValue (Maybe Dynamic)
 
 -- | Contain an optional value to return when an option is present
-newtype ActiveValue (s :: Symbol) a = ActiveValue
-  { _activeValue :: Maybe Dynamic
-  }
+newtype ActiveValue (s :: Symbol) a = ActiveValue (Maybe Dynamic)
 
 -- | Get the default value in DefaultValue if it exists and has the right type
 getDefaultValue :: forall a s. (Typeable a, KnownSymbol s) => DefaultValue s a -> Maybe a
@@ -29,11 +25,11 @@ getActiveValue (ActiveValue Nothing) = Nothing
 getActiveValue (ActiveValue (Just v)) = fromDynamic v
 
 -- | Allow to specify that a given field name and type has no default value
-noDefaultValue :: forall s a. (Typeable a, KnownSymbol s) => Typed (DefaultValue s a)
+noDefaultValue :: forall s a. (KnownSymbol s, Typeable a) => Typed (DefaultValue s a)
 noDefaultValue = fun (DefaultValue Nothing)
 
 -- | Allow to specify that a given field name and type has no active value
-noActiveValue :: forall s a. (Typeable a, KnownSymbol s) => Typed (ActiveValue s a)
+noActiveValue :: forall s a. (KnownSymbol s, Typeable a) => Typed (ActiveValue s a)
 noActiveValue = fun (ActiveValue Nothing)
 
 -- | Add a default value for a given field name and type

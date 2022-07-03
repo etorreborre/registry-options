@@ -1,5 +1,9 @@
+{-# LANGUAGE DataKinds #-}
+
 module Data.Registry.Options.Help where
 
+import Data.Registry (val)
+import Data.Registry.Internal.Types
 import Data.Registry.Options.CliOption
 import qualified Data.Text as T
 import Protolude
@@ -10,6 +14,7 @@ data Help = Help
     helpCommandLongDescription :: Maybe Text,
     helpCommandFields :: [CliOption]
   }
+  deriving (Eq, Show)
 
 noHelp :: Help
 noHelp = Help mempty mempty mempty mempty
@@ -31,8 +36,8 @@ displayHelp :: Help -> Text
 displayHelp (Help n s l fs) =
   T.unlines $
     displayCommand n s l
-    <> [""]
-    <> displayUsage n fs
+      <> [""]
+      <> displayUsage n fs
       <> [ "",
            "Available options:"
          ]
@@ -69,3 +74,12 @@ displayOptionsHelp os = do
     displayOption (CliOption Nothing (Just s) (Just m) _) = "-" <> T.singleton s <> " " <> m
     displayOption (CliOption Nothing _ (Just m) _) = m
     displayOption (CliOption Nothing _ Nothing _) = ""
+
+newtype ParserHelp (s :: Symbol) a = ParserHelp {fromParserHelp :: Help}
+  deriving (Eq, Show)
+
+noParserHelp :: forall s a. (KnownSymbol s, Typeable a) => Typed (ParserHelp s a)
+noParserHelp = val (ParserHelp mempty)
+
+setHelp :: forall s a. (KnownSymbol s, Typeable a) => Text -> Typed (ParserHelp s a)
+setHelp t= val (ParserHelp $ noHelp { helpCommandFields = [help t]})
