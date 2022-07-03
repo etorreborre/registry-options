@@ -18,9 +18,11 @@ data CliOption = CliOption
 
 -- | The Semigroup instance is used to collect several descriptions and
 --   aggregate them together, for example name "force" <> short 'f'
+--   The second option always takes precedence on the first one
+--   for example metavar "m1" <> metavar "m2" == metavar "m2"
 instance Semigroup CliOption where
   CliOption n1 s1 m1 h1 <> CliOption n2 s2 m2 h2 =
-    CliOption (n1 <|> n2) (s1 <|> s2) (m1 <|> m2) (h1 <|> h2)
+    CliOption (n2 <|> n1) (s2 <|> s1) (m2 <|> m1) (h2 <|> h1)
 
 instance Monoid CliOption where
   mempty = CliOption Nothing Nothing Nothing Nothing
@@ -42,16 +44,16 @@ metavar t = mempty {_metavar = Just t}
 help :: Text -> CliOption
 help t = mempty {_help = Just t}
 
--- | Display a CliOption to create a help text
-displayCliOption :: CliOption -> Text
-displayCliOption (CliOption (Just n) Nothing (Just m) _) = "--" <> n <> " " <> m
-displayCliOption (CliOption (Just n) (Just s) (Just m) _) = "[-" <> T.singleton s <> "|--" <> n <> " " <> m <> "]"
-displayCliOption (CliOption (Just n) Nothing Nothing _) = "--" <> n
-displayCliOption (CliOption (Just n) (Just s) Nothing _) = "[-" <> T.singleton s <> "|--" <> n <> "]"
-displayCliOption (CliOption Nothing (Just s) Nothing _) = "-" <> T.singleton s
-displayCliOption (CliOption Nothing (Just s) (Just m) _) = "[-" <> T.singleton s <> " " <> m <> "]"
-displayCliOption (CliOption Nothing _ (Just m) _) = m
-displayCliOption (CliOption Nothing _ Nothing _) = ""
+-- | Display a CliOption usage on the command line
+displayCliOptionUsage :: CliOption -> Text
+displayCliOptionUsage (CliOption (Just n) Nothing (Just m) _) = "--" <> n <> " " <> m
+displayCliOptionUsage (CliOption (Just n) (Just s) (Just m) _) = "[-" <> T.singleton s <> "|--" <> n <> " " <> m <> "]"
+displayCliOptionUsage (CliOption (Just n) Nothing Nothing _) = "--" <> n
+displayCliOptionUsage (CliOption (Just n) (Just s) Nothing _) = "[-" <> T.singleton s <> "|--" <> n <> "]"
+displayCliOptionUsage (CliOption Nothing (Just s) Nothing _) = "-" <> T.singleton s
+displayCliOptionUsage (CliOption Nothing (Just s) (Just m) _) = "[-" <> T.singleton s <> " " <> m <> "]"
+displayCliOptionUsage (CliOption Nothing _ (Just m) _) = m
+displayCliOptionUsage (CliOption Nothing _ Nothing _) = ""
 
 -- | Represent the possible combinations of commandline option names
 --   Note that we use Text to represent short names instead of Char

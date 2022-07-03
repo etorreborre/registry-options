@@ -33,7 +33,7 @@ data Parser (s :: Symbol) a = Parser
   deriving (Functor)
 
 instance Applicative (Parser s) where
-  pure a = Parser NoHelp (\ls -> Right (a, ls))
+  pure a = Parser noHelp (\ls -> Right (a, ls))
 
   Parser h1 f <*> Parser h2 fa = Parser (h1 <> h2) $ \ls -> do
     (l, ls1) <- f ls
@@ -41,7 +41,7 @@ instance Applicative (Parser s) where
     pure (l a, ls2)
 
 instance Alternative (Parser s) where
-  empty = Parser NoHelp(const $ Left "nothing to parse")
+  empty = Parser noHelp (const $ Left "nothing to parse")
 
   Parser h1 p1 <|> Parser h2 p2 = Parser (h1 <> h2) $ \lexed ->
     case p1 lexed of
@@ -118,11 +118,11 @@ parseWith os defaultValue activeValue d = do
 
     returnActiveValue = case getActiveValue activeValue of
       Just def -> pure def
-      Nothing -> Left $ "missing active value for argument: " <> displayCliOption cliOption
+      Nothing -> Left $ "missing active value for argument: " <> displayCliOptionUsage cliOption
 
     returnDefaultValue = case getDefaultValue defaultValue of
       Just def -> pure def
-      Nothing -> Left $ "missing default value for argument: " <> displayCliOption cliOption
+      Nothing -> Left $ "missing default value for argument: " <> displayCliOptionUsage cliOption
 
 -- | Find the value for a given option
 --   and remove the option and / or its value for the list of command-line arguments

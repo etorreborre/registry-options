@@ -10,23 +10,27 @@ import qualified Data.Text as T
 import Protolude
 import Test.Tasty.Hedgehogx
 
-test_parse_command = test "display a command help" $ do
+test_command_help = test "display a command help" $ do
   let p =
         make @(Parser Anonymous Copy) $
-          fun (copyCommand "copy")
+          fun (copyCommand "copy" "a utility to copy files" "copies a file from SOURCE to TARGET")
             <: switch @"force" [help "Force the copy even if a file already exists with the same name"]
-            <: positional @"source" @File 0 [help "Source path"]
-            <: positional @"target" @File 1 [help "Target path"]
+            <: positional @"source" @File 0 [metavar "SOURCE", help "Source path"]
+            <: positional @"target" @File 1 [metavar "TARGET", help "Target path"]
             <: defaults
 
   displayHelp (parserHelp p)
     === T.unlines
       [ "copy - a utility to copy files",
-        "copies a file from SOURCE to TARGET",
+        "",
+        "  copies a file from SOURCE to TARGET",
+        "",
         "Usage: copy -f SOURCE TARGET",
         "",
         "Available options:",
-        "  -f,--force               Force the copy even if a file already exists with the same name"
+        "  -f,--force BOOL          Force the copy even if a file already exists with the same name",
+        "  SOURCE                   Source path",
+        "  TARGET                   Target path"
       ]
 
 -- * HELPERS
@@ -60,10 +64,14 @@ copyArgumentsDecoder = Decoder $ \ts ->
     [s, t] -> Right (File s, File t)
     _ -> Left $ "expected a source and a target path in: " <> ts
 
-copyCommand :: Text -> Parser "force" Bool -> Parser "source" File -> Parser "target" File -> Parser Anonymous Copy
-copyCommand commandName p1 p2 p3 = Parser NoHelp $ \case
-  (n : ls)
-    | ArgValue commandName == n ->
-      parseLexed (Copy <$> coerce p1 <*> coerce p2 <*> coerce p3) ls
-  _ ->
-    Left $ "command not found, expected: " <> commandName
+copyCommand :: Text -> Text -> Text -> Parser "force" Bool -> Parser "source" File -> Parser "target" File -> Parser Anonymous Copy
+copyCommand commandName shortDescription longDescription p1 p2 p3 = do
+  let copyParser = Copy <$> coerce p1 <*> coerce p2 <*> coerce p3
+  Parser (ch <> parserHelp copyParser) $ \case
+    (n : ls)
+      | ArgValue commandName == n ->
+        parseLexed copyParser ls
+    _ ->
+      Left $ "command not found, expected: " <> commandName
+  where
+    ch = commandHelp commandName shortDescription longDescription

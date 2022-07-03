@@ -193,7 +193,7 @@ copyArgumentsDecoder = Decoder $ \ts ->
     _ -> Left $ "expected a source and a target path in: " <> ts
 
 copyCommand :: Text -> Parser "force" Bool -> Parser "source" Text -> Parser "target" Text -> Parser Anonymous Copy
-copyCommand commandName p1 p2 p3 = Parser NoHelp $ \case
+copyCommand commandName p1 p2 p3 = Parser noHelp $ \case
   (n : ls)
     | ArgValue commandName == n ->
       parseLexed (Copy <$> coerce p1 <*> coerce p2 <*> coerce p3) ls
