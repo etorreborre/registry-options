@@ -10,11 +10,11 @@ import Data.Registry.Options
 import qualified Data.Text as T
 import Protolude
 import Test.Data.Registry.Options.Fs
-import Test.Tasty.Hedgehogx
+import Test.Tasty.Hedgehogx hiding (Command)
 
 test_command_help = test "display a command help" $ do
   let p =
-        make @(Parser Anonymous Copy) $
+        make @(Parser Command Copy) $
           fun (copyCommand "copy" "a utility to copy files" "copies a file from SOURCE to TARGET")
             <: switch @"force" [help "Force the copy even if a file already exists with the same name"]
             <: argument @"source" @File [metavar "SOURCE", help "Source path"]
@@ -39,7 +39,7 @@ test_command_help = test "display a command help" $ do
 
 test_command_help_th = test "display a command help, using TH" $ do
   let p =
-        make @(Parser Anonymous Copy) $
+        make @(Parser Command Copy) $
           $(makeCommand ''Copy [shortDescription "a utility to copy files", longDescription "copies a file from SOURCE to TARGET"])
             <: switch @"force" [help "Force the copy even if a file already exists with the same name"]
             <: argument @"source" @File [metavar "SOURCE", help "Source path"]
@@ -64,7 +64,7 @@ test_command_help_th = test "display a command help, using TH" $ do
 
 test_alternative_command_help_th = test "display a command help, with alternatives, using TH" $ do
   let p =
-        make @(Parser Anonymous Fs) $
+        make @(Parser Command Fs) $
           $(makeCommand ''Fs [shortDescription "utilities to copy and move files"])
             <: $(makeCommand ''Move [longDescription "moves a file from SOURCE to TARGET"])
             <: $(makeCommand ''Copy [longDescription "copies a file from SOURCE to TARGET"])
@@ -127,7 +127,7 @@ copyArgumentsDecoder = Decoder $ \ts ->
     [s, t] -> Right (File s, File t)
     _ -> Left $ "expected a source and a target path in: " <> ts
 
-copyCommand :: Text -> Text -> Text -> Parser "force" Bool -> Parser "source" File -> Parser "target" File -> Parser Anonymous Copy
+copyCommand :: Text -> Text -> Text -> Parser "force" Bool -> Parser "source" File -> Parser "target" File -> Parser Command Copy
 copyCommand commandName s l p1 p2 p3 = do
   let copyParser = Copy <$> coerce p1 <*> coerce p2 <*> coerce p3
   Parser (ch <> parserHelp copyParser) $ \case

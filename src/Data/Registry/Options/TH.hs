@@ -35,7 +35,7 @@ data ParserOptions = ParserOptions
 
 defaultParserOptions :: ParserOptions
 defaultParserOptions = ParserOptions {
-  makeFieldType = \typeName -> maybe "Anonymous" (T.toLower . T.drop (T.length typeName) . dropQualifier),
+  makeFieldType = \typeName -> maybe "Command" (T.toLower . T.drop (T.length typeName) . dropQualifier),
   makeCommandName = T.toLower . dropQualifier
 }
 
@@ -44,7 +44,7 @@ makeParserWith parserOptions isCommand typeName help = do
   info <- reify typeName
   case info of
     TyConI (NewtypeD _context _name _typeVars _kind (NormalC constructor [(_, fieldType)]) _deriving) -> do
-      -- \(p::Parser "Anonymous" OldType) -> fmap NewType p
+      -- \(p::Parser "Command" OldType) -> fmap NewType p
       let cName = mkName $ show constructor
       let fieldNameType = fieldNameTypeT parserOptions cName Nothing
       let parser = lamE [sigP (varP "p") (conT "Parser" `appT` fieldNameType `appT` pure fieldType)] (appE (appE (varE "fmap") (conE cName)) (varE "p"))

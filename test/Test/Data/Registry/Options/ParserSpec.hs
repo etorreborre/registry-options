@@ -9,7 +9,7 @@ import Data.Registry.Options as D
 import qualified Data.Text as T
 import Protolude hiding (option)
 import Test.Data.Registry.Options.Fs
-import Test.Tasty.Hedgehogx hiding (defaultValue)
+import Test.Tasty.Hedgehogx hiding (Command, defaultValue)
 
 test_lexed = test "lex the command line" $ do
   lex ["-o", "--o", "v"] === [FlagName "o", FlagName "o", ArgValue "v"]
@@ -117,7 +117,7 @@ test_parse_optional = test "parse optional options and arguments" $ do
 test_parse_alternatives = test "parse alternative options and arguments" $ do
   let parsers =
         fun simpleAlternative
-          <: anonymous @Text []
+          <: argument @"text" @Text []
           <: flag @"bool" True Nothing []
           <: option @"int" @Int []
           <: defaults
@@ -132,7 +132,7 @@ test_parse_alternatives = test "parse alternative options and arguments" $ do
 
 test_parse_command = test "parse a command" $ do
   let p =
-        make @(Parser Anonymous Copy) $
+        make @(Parser Command Copy) $
           fun (copyCommand "copy")
             <: switch @"force" []
             <: positional @"source" @Text 0 []
@@ -142,10 +142,10 @@ test_parse_command = test "parse a command" $ do
 
 -- * HELPERS
 
-getParser :: forall a. (Typeable a) => Registry _ _ -> Parser Anonymous a
-getParser = make @(Parser Anonymous a)
+getParser :: forall a. (Typeable a) => Registry _ _ -> Parser Command a
+getParser = make @(Parser Command a)
 
-constructor1 :: Parser "text" Text -> Parser "bool" Bool -> Parser "int" Int -> Parser "file" File -> Parser "Anonymous" Constructor1
+constructor1 :: Parser "text" Text -> Parser "bool" Bool -> Parser "int" Int -> Parser "file" File -> Parser "Command" Constructor1
 constructor1 p1 p2 p3 p4 = Constructor1 <$> coerce p1 <*> coerce p2 <*> coerce p3 <*> coerce p4
 
 defaults = fun defaultFieldOptions <: decoders
@@ -170,7 +170,7 @@ data SimpleAlternative
   | SimpleAlternative3 Int
   deriving (Eq, Show)
 
-simpleAlternative :: Parser "bool" Bool -> Parser Anonymous Text -> Parser "int" Int -> Parser Anonymous SimpleAlternative
+simpleAlternative :: Parser "bool" Bool -> Parser "text" Text -> Parser "int" Int -> Parser Command SimpleAlternative
 simpleAlternative p1 p2 p3 = (SimpleAlternative1 <$> coerce p1) <|> (SimpleAlternative2 <$> coerce p2) <|> (SimpleAlternative3 <$> coerce p3)
 
 file1 :: File
@@ -184,7 +184,7 @@ copyArgumentsDecoder = Decoder $ \ts ->
     [s, t] -> Right (s, t)
     _ -> Left $ "expected a source and a target path in: " <> ts
 
-copyCommand :: Text -> Parser "force" Bool -> Parser "source" Text -> Parser "target" Text -> Parser Anonymous Copy
+copyCommand :: Text -> Parser "force" Bool -> Parser "source" Text -> Parser "target" Text -> Parser Command Copy
 copyCommand commandName p1 p2 p3 = Parser noHelp $ \case
   (n : ls)
     | ArgValue commandName == n ->

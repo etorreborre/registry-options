@@ -54,12 +54,12 @@ unitParser = Parser noHelp $ \ls -> Right ((), ls)
 addParserHelp :: Parser s a -> Help -> Parser s a
 addParserHelp p h = p {parserHelp = parserHelp p <> h}
 
--- | The Anonymous type can be used to create
+-- | The Command type can be used to create
 --   parsers which are not given a specific role
-type Anonymous = "Anonymous"
+type Command = "Command"
 
--- | All parsers can be made anonymous
-coerceParser :: Parser s a -> Parser Anonymous a
+-- | All parsers can be used to parse a command
+coerceParser :: Parser s a -> Parser t a
 coerceParser = coerce
 
 -- | Command line arguments can be parsed with a specific and either return an error
@@ -73,9 +73,8 @@ parse p = parseArgs p . fmap T.strip . T.splitOn " "
 
 -- | Create a Parser a for a given constructor of type a
 --   by using the Applicative instance of a Parser
---   Since this only works on anonymous parsers, the applicability of this function is limited
-parserOf :: forall a b. (ApplyVariadic (Parser Anonymous) a b, Typeable a, Typeable b) => a -> Typed b
-parserOf = funTo @(Parser Anonymous)
+parserOf :: forall a b. (ApplyVariadic (Parser Command) a b, Typeable a, Typeable b) => a -> Typed b
+parserOf = funTo @(Parser Command)
 
 -- | Create a Parser for command-line field given:
 --     - fieldOptions to derive long/short/metavar names from a field name

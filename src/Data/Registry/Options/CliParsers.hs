@@ -87,7 +87,7 @@ arguments os = do
   fun p
     <+ setNoDefaultValues @s @[a]
 
-parseCommandName :: Text -> Parser Anonymous Text
+parseCommandName :: Text -> Parser Command Text
 parseCommandName cn = Parser noHelp $ \case
   [] -> Left $ "no arguments found, expected command: " <> cn
   n:rest ->
@@ -119,19 +119,6 @@ positional n os = do
 
   fun p
     <+ setNoDefaultValues @s @a
-
--- | Create an anonymous argument:
---     - with no short/long names
---     - a metavar
---     - no active/default values
---
---   The [CliOption] list can be used to override values or provide a help
---
---   When the argument is read, its value is removed from the list of lexed values
-anonymous :: forall a. (Typeable a, Show a) => [CliOption] -> Registry _ _
-anonymous os =
-  fun (\fieldOptions -> parseField @Anonymous @a fieldOptions Nothing (showType @a) os)
-    <+ setNoDefaultValues @Anonymous @a
 
 -- | Set an active value for a given field name and field type
 setActiveValue :: forall s a. (KnownSymbol s, Typeable a) => a -> Typed (ActiveValue s a)
