@@ -1,6 +1,7 @@
 module Data.Registry.Options.Text where
 
 import qualified Data.Text as T
+import qualified Data.Char as C
 import Protolude
 import Prelude (String)
 
@@ -17,3 +18,6 @@ hyphenateString (a : as) = if isUpper a then '-' : toLower a : hyphenateString a
 --   dropQualifier "x.y.z" === "z"
 dropQualifier :: Text -> Text
 dropQualifier t = fromMaybe t . lastMay $ T.splitOn "." t
+
+dropPrefix :: Text -> Text
+dropPrefix = T.dropWhile C.isLower

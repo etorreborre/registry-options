@@ -40,7 +40,6 @@ flag activeValue defaultValue os = do
   fun (\fieldOptions -> parseField @s @a fieldOptions (Just $ getSymbol @s) fieldType os)
     <+ maybe noDefaultValue (setDefaultValue @s @a) defaultValue
     <+ setActiveValue @s @a activeValue
-    <+ noParserHelp @s @a
 
 -- | Create a switch:
 --     - with a short/long name
@@ -55,7 +54,6 @@ switch os = do
   fun (\fieldOptions -> parseField @s @Bool fieldOptions (Just $ getSymbol @s) fieldType os)
     <+ setDefaultValue @s False
     <+ setActiveValue @s True
-    <+ noParserHelp @s @Bool
 
 -- | Create an argument:
 --     - with no short/long names
@@ -87,7 +85,7 @@ positional n os = do
           -- take element at position n and make sure to keep all the other
           -- arguments intact because we need their position to parse them
           let arg = take 1 . drop n $ getArguments ls
-          let argumentParser = parseField @s @a fieldOptions Nothing (showType @a) os dv av (ParserHelp mempty) d
+          let argumentParser = parseField @s @a fieldOptions Nothing (showType @a) os dv av d
           case parseLexed argumentParser arg of
             Left e -> Left e
             Right (v, _) -> Right (v, ls)
@@ -127,5 +125,4 @@ setNoDefaultValues :: forall s a. (KnownSymbol s, Typeable a) => Registry _ _
 setNoDefaultValues =
   noDefaultValue @s @a
   <+ noActiveValue @s @a
-  <+ noParserHelp @s @a
   <+ val (mempty :: [CliOption])

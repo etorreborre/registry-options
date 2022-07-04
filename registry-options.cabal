@@ -76,6 +76,7 @@ library
     , registry >=0.2 && <0.4
     , template-haskell >=2.13 && <3.0
     , text ==1.*
+    , th-lift >=0.8 && <1
     , transformers >=0.5 && <2
     , unordered-containers >=0.2 && <1
     , vector >=0.1 && <1
@@ -87,7 +88,7 @@ test-suite spec
   other-modules:
       AutoDiscoveredSpecs
       Test.Data.Registry.Options.CommandSpec
-      Test.Data.Registry.Options.Copy
+      Test.Data.Registry.Options.Fs
       Test.Data.Registry.Options.GitSpec
       Test.Data.Registry.Options.HelpSpec
       Test.Data.Registry.Options.ParserSpec
@@ -139,6 +140,7 @@ test-suite spec
     , tasty
     , template-haskell >=2.13 && <3.0
     , text ==1.*
+    , th-lift >=0.8 && <1
     , time
     , transformers >=0.5 && <2
     , unordered-containers >=0.2 && <1

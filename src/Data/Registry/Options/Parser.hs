@@ -43,10 +43,13 @@ instance Applicative (Parser s) where
 instance Alternative (Parser s) where
   empty = Parser noHelp (const $ Left "nothing to parse")
 
-  Parser h1 p1 <|> Parser h2 p2 = Parser (h1 <> h2) $ \lexed ->
+  Parser h1 p1 <|> Parser h2 p2 = Parser (noHelp {helpSubcommands = [h1, h2]}) $ \lexed ->
     case p1 lexed of
       Right a -> Right a
       _ -> p2 lexed
+
+addParserHelp :: Parser s a -> Help -> Parser s a
+addParserHelp p h = p {parserHelp = parserHelp p <> h}
 
 -- | The Anonymous type can be used to create
 --   parsers which are not given a specific role
@@ -79,20 +82,20 @@ parserOf = funTo @(Parser Anonymous)
 --     - an optional default value for the field: the value to use if the field is missing
 --     - an optional active value for the field: the value to use if the field is present
 --     - a Decoder to read the value as text
-parseField :: forall s a. (KnownSymbol s, Typeable a, Show a) => FieldOptions -> Maybe Text -> Text -> [CliOption] -> DefaultValue s a -> ActiveValue s a -> ParserHelp s a -> Decoder a -> Parser s a
-parseField fieldOptions fieldName fieldType os parserHelp = do
+parseField :: forall s a. (KnownSymbol s, Typeable a, Show a) => FieldOptions -> Maybe Text -> Text -> [CliOption] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
+parseField fieldOptions fieldName fieldType os = do
   let shortName = short . makeShortName fieldOptions <$> toList fieldName
   let longName = name . toS . makeLongName fieldOptions <$> toList fieldName
-  parseWith (shortName <> longName <> [metavar $ makeMetavar fieldOptions fieldType] <> os) parserHelp
+  parseWith (shortName <> longName <> [metavar $ makeMetavar fieldOptions fieldType] <> os)
 
 -- | Create a parser for a given field given:
 --     - its name(s)
 --     - an optional default value for the field: the value to use if the field is missing
 --     - an optional active value for the field: the value to use if the field is present
 --     - a Decoder to read the value as text
-parseWith :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> DefaultValue s a -> ActiveValue s a -> ParserHelp s a -> Decoder a -> Parser s a
-parseWith os defaultValue activeValue parserHelp d = do
-  Parser (fromCliOption cliOption <> fromParserHelp parserHelp) $ \lexed ->
+parseWith :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
+parseWith os defaultValue activeValue d = do
+  Parser (fromCliOption cliOption) $ \lexed ->
     case getName cliOption of
       -- named option, flag or switch
       Just n -> do

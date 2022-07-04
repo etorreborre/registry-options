@@ -8,7 +8,7 @@ import Data.Registry
 import Data.Registry.Options as D
 import qualified Data.Text as T
 import Protolude hiding (option)
-import Test.Data.Registry.Options.Copy
+import Test.Data.Registry.Options.Fs
 import Test.Tasty.Hedgehogx hiding (defaultValue)
 
 test_lexed = test "lex the command line" $ do
