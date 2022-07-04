@@ -5,18 +5,10 @@ module Test.Data.Registry.Options.ParserSpec where
 
 import Data.Coerce
 import Data.Registry
-import Data.Registry.Options as D
-import qualified Data.Text as T
+import Data.Registry.Options
 import Protolude hiding (option)
 import Test.Data.Registry.Options.Fs
 import Test.Tasty.Hedgehogx hiding (Command, defaultValue)
-
-test_lexed = test "lex the command line" $ do
-  lex ["-o", "--o", "v"] === [FlagName "o", FlagName "o", ArgValue "v"]
-  lex ["-q", "--hello", "eric", "--repeat", "10"] === [FlagName "q", FlagName "hello", ArgValue "eric", FlagName "repeat", ArgValue "10"]
-  lex ["-q", "eric", "--repeat", "10"] === [FlagName "q", ArgValue "eric", FlagName "repeat", ArgValue "10"]
-  lex ["-q", "eric", "etorreborre", "--repeat", "10"] === [FlagName "q", ArgValue "eric", ArgValue "etorreborre", FlagName "repeat", ArgValue "10"]
-  lex ["-q", "--repeat", "10", "eric", "etorreborre"] === [FlagName "q", FlagName "repeat", ArgValue "10", ArgValue "eric", ArgValue "etorreborre"]
 
 test_parse_option = test "parse an option" $ do
   let p = make @(Parser "text" Text) (option @"text" @Text [] <: defaults)
@@ -151,15 +143,10 @@ constructor1 p1 p2 p3 p4 = Constructor1 <$> coerce p1 <*> coerce p2 <*> coerce p
 defaults = fun defaultFieldOptions <: decoders
 
 decoders =
-  manyOf @Int
-    <: manyOf @Bool
-    <: manyOf @Text
-    <: maybeOf @Int
-    <: manyOf @File
-    <: funTo @Decoder File
-    <: addDecoder D.intDecoder
-    <: addDecoder D.boolDecoder
-    <: addDecoder D.textDecoder
+  funTo @Decoder File
+    <: addDecoder intDecoder
+    <: addDecoder boolDecoder
+    <: addDecoder textDecoder
 
 data Constructor1 = Constructor1 Text Bool Int File
   deriving (Eq, Show)
@@ -177,12 +164,6 @@ file1 :: File
 file1 = File "file1"
 
 -- COPY EXAMPLE for 2 arguments
-
-copyArgumentsDecoder :: Decoder (Text, Text)
-copyArgumentsDecoder = Decoder $ \ts ->
-  case T.strip <$> T.splitOn " " ts of
-    [s, t] -> Right (s, t)
-    _ -> Left $ "expected a source and a target path in: " <> ts
 
 copyCommand :: Text -> Parser "force" Bool -> Parser "source" Text -> Parser "target" Text -> Parser Command Copy
 copyCommand commandName p1 p2 p3 = Parser noHelp $ \case
