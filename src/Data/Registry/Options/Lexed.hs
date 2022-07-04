@@ -15,6 +15,11 @@ data Lexed
   | DoubleDash
   deriving (Eq, Show)
 
+displayLexed :: Lexed -> Text
+displayLexed (FlagName t) = "--" <> t
+displayLexed (ArgValue t) = t
+displayLexed DoubleDash = "--"
+
 -- | Lex some input arguments
 --   They are first stripped of additional whitespace
 --   and empty strings are removed

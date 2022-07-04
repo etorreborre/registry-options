@@ -63,7 +63,7 @@ makeParserWith parserOptions isCommand typeName help = do
           fs <- fieldsOf c
           cName <- nameOf c
           addToRegistry $
-            [funOf $ makeConstructorParser parserOptions typeName c $ mconcat help]
+            [funOf $ makeConstructorParser parserOptions isCommand typeName c $ mconcat help]
               <> (if isCommand then [] else
                   (uncurry (makeFieldParser parserOptions cName) <$> fs) <>
                   (uncurry (makeNoDefaultValues parserOptions cName) <$> fs))
@@ -92,8 +92,8 @@ funOf = appE (varE (mkName "fun"))
 
 -- | Make a Parser for a single Constructor, where each field of the constructor is parsed separately
 --   \(os: FieldOptions) (p0::Parser fieldName0 Text) (p1::Parser fieldName1 Bool) -> Constructor <$> coerceParser p0 <*> coerceParser p1
-makeConstructorParser :: ParserOptions -> Name -> Con -> Help -> ExpQ
-makeConstructorParser parserOptions typeName c help = do
+makeConstructorParser :: ParserOptions -> Bool -> Name -> Con -> Help -> ExpQ
+makeConstructorParser parserOptions isCommand typeName c help = do
   fs <- fieldsOf c
   cName <- nameOf c
   let parserParameters =
@@ -104,7 +104,7 @@ makeConstructorParser parserOptions typeName c help = do
           <$> zip fs [(0 :: Int) ..]
   let parserType = conT "Parser" `appT` fieldNameTypeT parserOptions cName Nothing `appT` conT typeName
   let commandName = makeCommandName parserOptions (show cName)
-  let parserWithHelp = varE "addParserHelp" `appE` applyParser cName [0 .. (length fs - 1)] `appE` runQ [|help { helpCommandName = Just commandName}|]
+  let parserWithHelp = varE "addParserHelp" `appE` applyParser parserOptions isCommand cName [0 .. (length fs - 1)] `appE` runQ [|help { helpCommandName = Just commandName}|]
   lamE parserParameters (sigE parserWithHelp parserType)
 
 -- | Make a Parser for a several Constructors, where each field of each the constructor is parsed separately
@@ -127,7 +127,7 @@ makeConstructorsParser parserOptions typeName cs help = do
             cName <- nameOf c
             cFields <- fieldsOf c
             constructorTypes <- indexConstructorTypes fs cFields
-            applyParser cName constructorTypes
+            applyParser parserOptions False cName constructorTypes
         )
           <$> cs
   let commandName = makeCommandName parserOptions (show typeName)
@@ -136,13 +136,17 @@ makeConstructorsParser parserOptions typeName cs help = do
   lamE parserParameters (sigE parserAlternatives parserType)
 
 -- ConstructorName <$> coerceParser p0 <*> coerceParser p1 ...
-applyParser :: Name -> [Int] -> ExpQ
-applyParser cName [] = appE (varE $ mkName "pure") (conE cName)
-applyParser cName (n : ns) = do
-  let cons = appE (varE "pure") (conE cName)
-  foldr (\i r -> appE (appE (varE "<*>") r) $ parseAt i) (appE (appE (varE "<*>") cons) $ parseAt n) (reverse ns)
-  where
-    parseAt i = varE "coerceParser" `appE` varE (mkName $ "p" <> show i)
+applyParser :: ParserOptions -> Bool -> Name -> [Int] -> ExpQ
+applyParser parserOptions isCommand cName ns = do
+  let commandName = makeCommandName parserOptions (show cName)
+  let parseCommandName = varE "*>" `appE` (if isCommand then varE "parseCommandName" `appE` stringE (toS commandName) else varE "unitParser")
+  let cons = parseCommandName `appE` (varE "pure" `appE` conE cName)
+  case ns of
+    [] -> cons
+    (n:rest) ->
+      foldr (\i r -> varE "<*>" `appE` r `appE` parseAt i) (varE "<*>" `appE` cons `appE` parseAt n) (reverse rest)
+      where
+        parseAt i = varE "coerceParser" `appE` varE (mkName $ "p" <> show i)
 
 -- | Get the types of all the fields of a constructor
 typesOf :: Con -> Q [Type]

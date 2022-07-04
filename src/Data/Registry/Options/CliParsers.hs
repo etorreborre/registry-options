@@ -87,6 +87,15 @@ arguments os = do
   fun p
     <+ setNoDefaultValues @s @[a]
 
+parseCommandName :: Text -> Parser Anonymous Text
+parseCommandName cn = Parser noHelp $ \case
+  [] -> Left $ "no arguments found, expected command: " <> cn
+  n:rest ->
+    if n == ArgValue cn then
+      Right (cn, rest)
+    else
+      Left $ "expected command: " <> cn <> ", found: " <> displayLexed n
+
 -- | Create a positional argument, to parse the nth value (starting from 0):
 --     - with no short/long names
 --     - a metavar

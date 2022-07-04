@@ -48,6 +48,9 @@ instance Alternative (Parser s) where
       Right a -> Right a
       _ -> p2 lexed
 
+unitParser :: Parser s ()
+unitParser = Parser noHelp $ \ls -> Right ((), ls)
+
 addParserHelp :: Parser s a -> Help -> Parser s a
 addParserHelp p h = p {parserHelp = parserHelp p <> h}
 

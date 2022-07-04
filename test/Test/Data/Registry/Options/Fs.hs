@@ -28,3 +28,4 @@ newtype File = File {_filePath :: Text} deriving (Eq, Show)
 
 instance IsString File where
   fromString = File . toS
+  

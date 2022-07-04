@@ -40,11 +40,7 @@ test_command_help = test "display a command help" $ do
 test_command_help_th = test "display a command help, using TH" $ do
   let p =
         make @(Parser Anonymous Copy) $
-          $( makeCommand ''Copy $
-               [ shortDescription "a utility to copy files",
-                 longDescription "copies a file from SOURCE to TARGET"
-               ]
-           )
+          $(makeCommand ''Copy [shortDescription "a utility to copy files", longDescription "copies a file from SOURCE to TARGET"])
             <: switch @"force" [help "Force the copy even if a file already exists with the same name"]
             <: argument @"source" @File [metavar "SOURCE", help "Source path"]
             <: argument @"target" @File [metavar "TARGET", help "Target path"]
@@ -63,6 +59,8 @@ test_command_help_th = test "display a command help, using TH" $ do
         "  SOURCE                   Source path",
         "  TARGET                   Target path"
       ]
+
+  parse p "copy -f source target" === Right (Copy True "source" "target")
 
 test_alternative_command_help_th = test "display a command help, with alternatives, using TH" $ do
   let p =
@@ -103,6 +101,9 @@ test_alternative_command_help_th = test "display a command help, with alternativ
                ]
             <> [""]
         )
+
+  parse p "copy -f source target" === Right (FsCopy $ Copy True "source" "target")
+  parse p "move -f source target" === Right (FsMove $ Move True "source" "target")
 
 -- * HELPERS
 
