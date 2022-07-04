@@ -7,6 +7,7 @@ import Data.Dynamic
 import Data.Registry (Registry, fun, val, (<+))
 import Data.Registry.Internal.Types (Typed)
 import Data.Registry.Options.CliOption
+import Data.Registry.Options.Decoder
 import Data.Registry.Options.DefaultValues
 import Data.Registry.Options.FieldOptions
 import Data.Registry.Options.Help
@@ -69,6 +70,23 @@ argument os = do
   fun (\fieldOptions -> parseField @s @a fieldOptions Nothing fieldType os)
     <+ setNoDefaultValues @s @a
 
+-- | Create a repeated argument:
+--     - with no short/long names
+--     - a metavar
+--     - no active/default values
+--
+--   The [CliOption] list can be used to override values or provide a help
+--
+--   This parser reads all the arguments from the command line
+arguments :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> Registry _ _
+arguments os = do
+  let p fieldOptions = \(_::DefaultValue s [a]) (_::ActiveValue s [a]) d -> do
+        let o = mconcat $ metavar (makeMetavar fieldOptions (showType @a)) : os
+        Parser @s @[a] (fromCliOption o) $ \ls ->
+          (,[]) <$> (decode (decodeMany d) . unlexValues $ getArguments ls)
+  fun p
+    <+ setNoDefaultValues @s @[a]
+
 -- | Create a positional argument, to parse the nth value (starting from 0):
 --     - with no short/long names
 --     - a metavar
@@ -124,5 +142,5 @@ setDefaultValues defaultValue activeValue =
 setNoDefaultValues :: forall s a. (KnownSymbol s, Typeable a) => Registry _ _
 setNoDefaultValues =
   noDefaultValue @s @a
-  <+ noActiveValue @s @a
-  <+ val (mempty :: [CliOption])
+    <+ noActiveValue @s @a
+    <+ val (mempty :: [CliOption])

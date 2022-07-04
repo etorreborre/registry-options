@@ -1,13 +1,12 @@
 module Data.Registry.Options.Decoder where
 
+import Data.Registry (ApplyVariadic, fun, funTo)
+import Data.Registry.Internal.Types (Typed)
 import qualified Data.Text as T
 import Protolude
-import Data.Registry (fun, funTo, ApplyVariadic)
-import Data.Registry.Internal.Types (Typed)
 
 -- | Decode a value of type a from Text
-newtype Decoder a =
-  Decoder {decode :: Text -> Either Text a}
+newtype Decoder a = Decoder {decode :: Text -> Either Text a}
   deriving (Functor, Applicative, Monad) via (ReaderT Text (Either Text))
 
 -- | Create a Decoder a for a given constructor of type a
@@ -33,9 +32,17 @@ textDecoder :: Text -> Either Text Text
 textDecoder t = if T.null t then Left "empty text" else Right t
 
 -- | Create a Decoder for Maybe a
-maybeOf :: forall a . Typeable a => Typed (Decoder a -> Decoder (Maybe a))
-maybeOf = fun $ \d -> Decoder $ \t -> either (const $ pure Nothing) (Right . Just) (decode d t)
+maybeOf :: forall a. Typeable a => Typed (Decoder a -> Decoder (Maybe a))
+maybeOf = fun decodeMaybe
+
+-- | Create a Decoder for Maybe a
+decodeMaybe :: forall a. Typeable a => Decoder a -> Decoder (Maybe a)
+decodeMaybe d = Decoder $ \t -> either (const $ pure Nothing) (Right . Just) (decode d t)
 
 -- | Create a Decoder for [a]
-manyOf :: forall a . Typeable a => Typed (Decoder a -> Decoder [a])
-manyOf = fun $ \d -> Decoder $ \t -> for (T.strip <$> T.splitOn " " t) (decode d)
+manyOf :: forall a. Typeable a => Typed (Decoder a -> Decoder [a])
+manyOf = fun decodeMany
+
+-- | Create a Decoder for [a]
+decodeMany :: forall a. Typeable a => Decoder a -> Decoder [a]
+decodeMany d = Decoder $ \t -> for (T.strip <$> T.splitOn " " t) (decode d)

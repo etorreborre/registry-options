@@ -87,13 +87,10 @@ test-suite spec
   main-is: test.hs
   other-modules:
       AutoDiscoveredSpecs
-      Test.Data.Registry.Options.CommandSpec
       Test.Data.Registry.Options.Fs
       Test.Data.Registry.Options.GitSpec
       Test.Data.Registry.Options.HelpSpec
       Test.Data.Registry.Options.ParserSpec
-      Test.Data.Registry.Options.TemplateHaskellSpec
-      Test.Data.Registry.Options.TemplateHaskellTypes
       Paths_registry_options
   hs-source-dirs:
       test
