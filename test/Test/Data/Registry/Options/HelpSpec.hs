@@ -112,20 +112,9 @@ defaults =
     <: decoders
 
 decoders =
-  manyOf @Int
-    <: manyOf @Bool
-    <: manyOf @Text
-    <: maybeOf @Int
-    <: funTo @Decoder File
-    <: addDecoder intDecoder
+  funTo @Decoder File
     <: addDecoder boolDecoder
     <: addDecoder textDecoder
-
-copyArgumentsDecoder :: Decoder (File, File)
-copyArgumentsDecoder = Decoder $ \ts ->
-  case T.strip <$> T.splitOn " " ts of
-    [s, t] -> Right (File s, File t)
-    _ -> Left $ "expected a source and a target path in: " <> ts
 
 copyCommand :: Text -> Text -> Text -> Parser "force" Bool -> Parser "source" File -> Parser "target" File -> Parser Command Copy
 copyCommand commandName s l p1 p2 p3 = do
