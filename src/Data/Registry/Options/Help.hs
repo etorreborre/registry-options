@@ -54,7 +54,7 @@ displayUsage :: Maybe Text -> [CliOption] -> [Text]
 displayUsage Nothing _ = []
 displayUsage (Just _) [] = []
 displayUsage (Just commandName) os =
-  ["", "Usage: " <> commandName <> " " <> T.intercalate " " (displayCliOptionShortUsage <$> os)]
+  ["", "USAGE", "", "  " <> commandName <> " " <> T.intercalate " " (displayCliOptionShortUsage <$> os)]
 
 -- | Display a CliOption usage on the command line
 displayCliOptionShortUsage :: CliOption -> Text
@@ -68,7 +68,7 @@ displayOptionsHelp [] = []
 displayOptionsHelp os = do
   let dos = displayOption <$> os
   let maxSize = fromMaybe 0 $ maximumMay (T.length <$> dos)
-  ["", "Available options:"]
+  ["", "ARGUMENTS", ""]
     <> ((\(d, o) -> "  " <> d <> T.replicate (maxSize - T.length d) " " <> "          " <> fromMaybe "" (_help o)) <$> zip dos os)
   where
     displayOption :: CliOption -> Text
