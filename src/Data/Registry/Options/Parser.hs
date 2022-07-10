@@ -7,8 +7,7 @@ module Data.Registry.Options.Parser where
 
 import Data.Coerce
 import Data.Dynamic
-import Data.Registry (ApplyVariadic, funTo)
-import Data.Registry.Internal.Types (Typed)
+import Data.Registry (ApplyVariadic, Typed, funTo)
 import Data.Registry.Options.CliOption
 import Data.Registry.Options.Decoder
 import Data.Registry.Options.DefaultValues
@@ -17,7 +16,7 @@ import Data.Registry.Options.Help
 import Data.Registry.Options.Lexed
 import qualified Data.Text as T
 import GHC.TypeLits
-import Protolude hiding (option)
+import Protolude
 import Type.Reflection
 
 -- | A Parser is responsible for parsing a value of type a
@@ -43,7 +42,7 @@ instance Applicative (Parser s) where
 instance Alternative (Parser s) where
   empty = Parser noHelp (const $ Left "nothing to parse")
 
-  Parser h1 p1 <|> Parser h2 p2 = Parser (noHelp {helpSubcommands = [h1, h2]}) $ \lexed ->
+  Parser h1 p1 <|> Parser h2 p2 = Parser (h1 `alt` h2) $ \lexed ->
     case p1 lexed of
       Right a -> Right a
       _ -> p2 lexed
@@ -51,8 +50,11 @@ instance Alternative (Parser s) where
 unitParser :: Parser s ()
 unitParser = Parser noHelp $ \ls -> Right ((), ls)
 
-addParserHelp :: Parser s a -> Help -> Parser s a
-addParserHelp p h = p {parserHelp = parserHelp p <> h}
+addParserHelp :: Help -> Parser s a -> Parser s a
+addParserHelp h p = setParserHelp (parserHelp p <> h) p
+
+setParserHelp :: Help -> Parser s a -> Parser s a
+setParserHelp h p = p {parserHelp = h}
 
 -- | The Command type can be used to create
 --   parsers which are not given a specific role

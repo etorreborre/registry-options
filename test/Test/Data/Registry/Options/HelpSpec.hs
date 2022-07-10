@@ -12,104 +12,44 @@ import Protolude
 import Test.Data.Registry.Options.Fs
 import Test.Tasty.Hedgehogx hiding (Command)
 
-test_command_help = test "display a command help" $ do
-  let p =
-        make @(Parser Command Copy) $
-          fun (copyCommand "copy" "a utility to copy files" "copies a file from SOURCE to TARGET")
-            <: switch @"force" [help "Force the copy even if a file already exists with the same name"]
-            <: argument @"source" @File [metavar "SOURCE", help "Source path"]
-            <: argument @"target" @File [metavar "TARGET", help "Target path"]
-            <: defaults
-
-  parse p "copy -f source target" === Right (Copy True "source" "target")
-
-  displayHelp (parserHelp p)
-    === T.unlines
-      [ "copy - a utility to copy files",
-        "",
-        "  copies a file from SOURCE to TARGET",
-        "",
-        "USAGE",
-        "",
-        "  copy -f SOURCE TARGET",
-        "",
-        "ARGUMENTS",
-        "",
-        "  -f,--force BOOL          Force the copy even if a file already exists with the same name",
-        "  SOURCE                   Source path",
-        "  TARGET                   Target path"
-      ]
-
-test_command_help_th = test "display a command help, using TH" $ do
-  let p =
-        make @(Parser Command Copy) $
-          $(makeCommand ''Copy [shortDescription "a utility to copy files", longDescription "copies a file from SOURCE to TARGET"])
-            <: switch @"force" [help "Force the copy even if a file already exists with the same name"]
-            <: argument @"source" @File [metavar "SOURCE", help "Source path"]
-            <: argument @"target" @File [metavar "TARGET", help "Target path"]
-            <: defaults
-
-  displayHelp (parserHelp p)
-    === T.unlines
-      [ "copy - a utility to copy files",
-        "",
-        "  copies a file from SOURCE to TARGET",
-        "",
-        "USAGE",
-        "",
-        "  copy -f SOURCE TARGET",
-        "",
-        "ARGUMENTS",
-        "",
-        "  -f,--force BOOL          Force the copy even if a file already exists with the same name",
-        "  SOURCE                   Source path",
-        "  TARGET                   Target path"
-      ]
-
-  parse p "copy -f source target" === Right (Copy True "source" "target")
-
-test_alternative_command_help_th = test "display a command help, with alternatives, using TH" $ do
-  let p =
-        make @(Parser Command Fs) $
-          $(makeCommand ''Fs [shortDescription "utilities to copy and move files"])
-            <: $(makeCommand ''Move [longDescription "moves a file from SOURCE to TARGET"])
-            <: $(makeCommand ''Copy [longDescription "copies a file from SOURCE to TARGET"])
+test_help_option = test "a parser can have help and version options" $ do
+  let parsers =
+          $(makeCommand ''Fs [shortDescription "a utility to copy and move files"])
+            <: $(makeCommand ''Move [shortDescription "move a file from SOURCE to TARGET"])
+            <: $(makeCommand ''Copy [shortDescription "copy a file from SOURCE to TARGET"])
             <: switch @"force" [help "Force the action even if a file already exists with the same name"]
+            <: flag @"help" @Bool True Nothing [help "Display this help message"]
+            <: flag @"version" @Bool True Nothing [help "Display the version"]
             <: argument @"source" @File [metavar "SOURCE", help "Source path"]
             <: argument @"target" @File [metavar "TARGET", help "Target path"]
             <: defaults
 
-  annotateShow (parserHelp p)
-  T.lines (displayHelp (parserHelp p))
-    === ( ["fs - utilities to copy and move files", ""]
-            <> [ "move",
-                 "",
-                 "  moves a file from SOURCE to TARGET",
-                 "",
-                 "Usage: move -f SOURCE TARGET",
-                 "",
-                 "Available options:",
-                 "  -f,--force BOOL          Force the action even if a file already exists with the same name",
-                 "  SOURCE                   Source path",
-                 "  TARGET                   Target path"
-               ]
-            <> [""]
-            <> [ "copy",
-                 "",
-                 "  copies a file from SOURCE to TARGET",
-                 "",
-                 "Usage: copy -f SOURCE TARGET",
-                 "",
-                 "Available options:",
-                 "  -f,--force BOOL          Force the action even if a file already exists with the same name",
-                 "  SOURCE                   Source path",
-                 "  TARGET                   Target path"
-               ]
-            <> [""]
-        )
+  let fsParser = make @(Parser Command Fs) $ parsers
+  let copyParser = make @(Parser Command Copy) $ parsers
 
-  parse p "copy -f source target" === Right (FsCopy $ Copy True "source" "target")
-  parse p "move -f source target" === Right (FsMove $ Move True "source" "target")
+  parse copyParser "copy --help" === Right (CopyHelp True)
+
+  parse fsParser "fs --help" === Right (FsHelp True)
+  parse fsParser "fs --version" === Right (FsVersion True)
+  parse fsParser "fs copy --help" === Right (FsCopy $ CopyHelp True)
+
+  T.lines (displayHelp (parserHelp fsParser))
+    === [ "fs - a utility to copy and move files",
+          "",
+          "USAGE",
+          "",
+          "  fs [OPTIONS] [COMMANDS]",
+          "",
+          "OPTIONS",
+          "",
+          "  -h,--help BOOL             Display this help message",
+          "  -v,--version BOOL          Display the version",
+          "",
+          "COMMANDS",
+          "",
+          "  copy [OPTIONS]          copy a file from SOURCE to TARGET",
+          "  move [OPTIONS]          move a file from SOURCE to TARGET"
+        ]
 
 -- * HELPERS
 

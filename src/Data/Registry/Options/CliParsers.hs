@@ -4,8 +4,7 @@
 module Data.Registry.Options.CliParsers where
 
 import Data.Dynamic
-import Data.Registry (Registry, fun, val, (<+))
-import Data.Registry.Internal.Types (Typed)
+import Data.Registry
 import Data.Registry.Options.CliOption
 import Data.Registry.Options.Decoder
 import Data.Registry.Options.DefaultValues
@@ -14,7 +13,7 @@ import Data.Registry.Options.Help
 import Data.Registry.Options.Lexed
 import Data.Registry.Options.Parser
 import GHC.TypeLits
-import Protolude hiding (option)
+import Protolude
 
 -- | Create an option:
 --     - with a short/long name

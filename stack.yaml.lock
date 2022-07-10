@@ -12,22 +12,29 @@ packages:
   original:
     hackage: protolude-0.3.1
 - completed:
-    hackage: registry-0.3.0.7@sha256:3fc3177c886e929f82bae44abb67743bbca3d971971e1df272f2734efb1892ed,5833
+    hackage: registry-0.3.2.1@sha256:2846e1dff8c628e2fed24cce2592abb25df54ce73e3143fe7dbfabfe0f6d5bb4,5833
     pantry-tree:
       size: 3982
-      sha256: 2a745b0445175731b9c6b045202e9db1ff403cb36780ff035a37ea2faae53d11
+      sha256: 9c00d5a72007be5020d3f45edf1276ff7f22d20fad5b8060c00891ed5a2f7c72
   original:
-    hackage: registry-0.3.0.7
+    hackage: registry-0.3.2.1
 - completed:
-    hackage: registry-hedgehog-0.7.0.1@sha256:9b39b6a5995418538ab5c1789277086b12b3a2670009c83237d24bbd033ca963,4287
+    hackage: registry-hedgehog-0.7.0.3@sha256:26e826ab3f6ca9f82a0a2c7a9c84ebea8dab1e402442d13cd0ae8a09f11b89a4,4287
     pantry-tree:
       size: 1379
-      sha256: 6a85939abb88c909e9f9516599d81d1300e9a360a833a55e8a3e58c6b4310269
+      sha256: 5333dc93c7b84bc7d42754d290f1d423af855f479dc5102c3540ccc271fac5da
   original:
-    hackage: registry-hedgehog-0.7.0.1
+    hackage: registry-hedgehog-0.7.0.3
+- completed:
+    hackage: universum-1.8.1@sha256:f4fa0a6362dc33f8d41a520d84d3636eb6a63ae7762599e2a595d02e5252e00e,6661
+    pantry-tree:
+      size: 3533
+      sha256: be4b1f38b18fbf052002bbc46acec260a8c4a2488c2a01c3eee9feb39eef7e83
+  original:
+    hackage: universum-1.8.1
 snapshots:
 - completed:
-    size: 618509
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/19/10.yaml
-    sha256: 005f204647467d65c4ab549a5ca35d54b3d90a84a99a4ffc5d421a4018854fe2
-  original: lts-19.10
+    size: 605110
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/nightly/2022/6/6.yaml
+    sha256: 26ea900ee8601fee24ff84981e92f304d384c73ee32d5504299133b5eb177e87
+  original: nightly-2022-06-06

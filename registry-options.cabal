@@ -92,6 +92,7 @@ test-suite spec
       Test.Data.Registry.Options.HelpSpec
       Test.Data.Registry.Options.LexedSpec
       Test.Data.Registry.Options.ParserSpec
+      Test.Data.Registry.Options.TextSpec
       Paths_registry_options
   hs-source-dirs:
       test

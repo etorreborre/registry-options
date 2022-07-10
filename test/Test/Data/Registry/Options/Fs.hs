@@ -5,27 +5,32 @@ import Protolude
 
 -- COPY EXAMPLE for 2 arguments
 
-data Copy = Copy
-  { copyForce :: Bool,
-    copySource :: File,
-    copyTarget :: File
-  }
+data Copy
+  = CopyHelp {copyHelp :: Bool}
+  | Copy
+      { copyForce :: Bool,
+        copySource :: File,
+        copyTarget :: File
+      }
   deriving (Eq, Show)
 
-data Move = Move
-  { moveForce :: Bool,
-    moveSource :: File,
-    moveTarget :: File
-  }
+data Move
+  = MoveHelp {moveHelp :: Bool}
+  | Move
+      { moveForce :: Bool,
+        moveSource :: File,
+        moveTarget :: File
+      }
   deriving (Eq, Show)
 
 data Fs
-  = FsMove Move
-  | FsCopy Copy
+  = FsCopy Copy
+  | FsMove Move
+  | FsHelp {fsHelp :: Bool}
+  | FsVersion {fsVersion :: Bool}
   deriving (Eq, Show)
 
 newtype File = File {_filePath :: Text} deriving (Eq, Show)
 
 instance IsString File where
   fromString = File . toS
-  

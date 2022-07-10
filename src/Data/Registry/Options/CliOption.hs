@@ -1,7 +1,7 @@
 module Data.Registry.Options.CliOption where
 
 import qualified Data.Text as T
-import Protolude hiding (option)
+import Protolude
 
 -- | Optional values used to document a command line option
 --    - name is a "long" name, like `launch-missiles`

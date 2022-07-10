@@ -36,7 +36,7 @@ data ParserOptions = ParserOptions
 defaultParserOptions :: ParserOptions
 defaultParserOptions = ParserOptions {
   makeFieldType = \typeName -> maybe "Command" (T.toLower . T.drop (T.length typeName) . dropQualifier),
-  makeCommandName = T.toLower . dropQualifier
+  makeCommandName = T.toLower . dropPrefix . dropQualifier
 }
 
 makeParserWith :: ParserOptions -> Bool -> Name -> [Help] -> ExpQ
@@ -104,7 +104,7 @@ makeConstructorParser parserOptions isCommand typeName c help = do
           <$> zip fs [(0 :: Int) ..]
   let parserType = conT "Parser" `appT` fieldNameTypeT parserOptions cName Nothing `appT` conT typeName
   let commandName = makeCommandName parserOptions (show cName)
-  let parserWithHelp = varE "addParserHelp" `appE` applyParser parserOptions isCommand cName [0 .. (length fs - 1)] `appE` runQ [|help { helpCommandName = Just commandName}|]
+  let parserWithHelp = varE "addParserHelp" `appE` runQ [|help { helpCommandName = Just commandName}|] `appE` applyParser parserOptions isCommand cName [0 .. (length fs - 1)]
   lamE parserParameters (sigE parserWithHelp parserType)
 
 -- | Make a Parser for a several Constructors, where each field of each the constructor is parsed separately
@@ -122,6 +122,7 @@ makeConstructorsParser parserOptions typeName cs help = do
             sigP (varP (mkName $ "p" <> show n)) (conT "Parser" `appT` fieldNameType `appT` pure t)
         )
           <$> zip fs [(0 :: Int) ..]
+
   let appliedParsers =
         ( \c -> do
             cName <- nameOf c
@@ -130,8 +131,13 @@ makeConstructorsParser parserOptions typeName cs help = do
             applyParser parserOptions False cName constructorTypes
         )
           <$> cs
+
   let commandName = makeCommandName parserOptions (show typeName)
-  let parserAlternatives = varE "addParserHelp" `appE` foldr1 (\p r -> varE "<|>" `appE` p `appE` r) appliedParsers `appE` runQ [|help { helpCommandName = Just commandName}|]
+  let commandNameParser = varE "parseCommandName" `appE` stringE (toS commandName)
+  let parserAlternatives =
+        varE "*>" `appE` commandNameParser `appE`
+        (varE "addParserHelp" `appE` runQ [|help { helpCommandName = Just commandName}|] `appE` foldr1 (\p r -> varE "<|>" `appE` p `appE` r) appliedParsers)
+
   let parserType = conT "Parser" `appT` fieldNameTypeT parserOptions typeName Nothing `appT` conT typeName
   lamE parserParameters (sigE parserAlternatives parserType)
 

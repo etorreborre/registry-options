@@ -1,7 +1,6 @@
 module Data.Registry.Options.Decoder where
 
-import Data.Registry (ApplyVariadic, fun, funTo)
-import Data.Registry.Internal.Types (Typed)
+import Data.Registry (ApplyVariadic, Typed, fun, funTo)
 import qualified Data.Text as T
 import Protolude
 

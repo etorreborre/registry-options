@@ -6,7 +6,7 @@ module Test.Data.Registry.Options.ParserSpec where
 import Data.Coerce
 import Data.Registry
 import Data.Registry.Options
-import Protolude hiding (option)
+import Protolude
 import Test.Data.Registry.Options.Fs
 import Test.Tasty.Hedgehogx hiding (Command, defaultValue)
 
