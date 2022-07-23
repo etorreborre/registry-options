@@ -49,7 +49,7 @@ displayHelp (Help n s l fs cs) =
     displayCommand n s l
       <> displayUsage n fs cs
       <> displayOptionsHelp fs
-      <> (if null cs then [] else ["", "COMMANDS", ""] <> (displayCommandsHelp cs))
+      <> (if null cs then [] else ["", "COMMANDS", ""] <> displayCommandsHelp cs)
 
 displayCommand :: Maybe Text -> Maybe Text -> Maybe Text -> [Text]
 displayCommand Nothing _ _ = []
@@ -67,20 +67,22 @@ displayCommandsHelp hs = do
 
 displayUsage :: Maybe Text -> [CliOption] -> [Help] -> [Text]
 displayUsage Nothing _ _ = []
-displayUsage (Just _) [] [] = []
-displayUsage (Just commandName) [] (_ : _) =
-  ["", "USAGE", "", "  " <> commandName <> " [COMMANDS]"]
-displayUsage (Just commandName) (_ : _) [] =
-  ["", "USAGE", "", "  " <> commandName <> " [OPTIONS]"]
-displayUsage (Just commandName) _ _ =
-  ["", "USAGE", "", "  " <> commandName <> " [OPTIONS] [COMMANDS]"]
+displayUsage (Just commandName) fs cs =
+  [ "",
+    "USAGE",
+    "",
+    "  " <> commandName
+      <> (if null fs then "" else " " <> T.intercalate " " (fmap (bracketText . displayCliOptionShortUsage) fs))
+      <> (if null cs then "" else " " <> T.intercalate " " (fmap (bracketText . displayCommandName) cs))
+  ]
 
 -- | Display a CliOption usage on the command line
 displayCliOptionShortUsage :: CliOption -> Text
+displayCliOptionShortUsage (CliOption (Just n) (Just s) _ _) =  "-" <> T.singleton s <> "|" <> "--" <> n
 displayCliOptionShortUsage (CliOption _ (Just s) _ _) = "-" <> T.singleton s
 displayCliOptionShortUsage (CliOption (Just n) _ _ _) = "--" <> n
 displayCliOptionShortUsage (CliOption _ _ (Just m) _) = m
-displayCliOptionShortUsage o = displayCliOptionUsage o
+displayCliOptionShortUsage (CliOption _ _ _ _) = ""
 
 displayOptionsHelp :: [CliOption] -> [Text]
 displayOptionsHelp [] = []
@@ -88,18 +90,24 @@ displayOptionsHelp os = do
   let ds = displayOption <$> os
   let hs = fromMaybe "" . _help <$> os
   ["", "OPTIONS", ""] <> displayColumns ds hs
-  where
-    displayOption :: CliOption -> Text
-    displayOption (CliOption (Just n) Nothing (Just m) _) = "--" <> n <> " " <> m
-    displayOption (CliOption (Just n) (Just s) (Just m) _) = "-" <> T.singleton s <> ",--" <> n <> " " <> m
-    displayOption (CliOption (Just n) Nothing Nothing _) = "--" <> n
-    displayOption (CliOption (Just n) (Just s) Nothing _) = "-" <> T.singleton s <> ",--" <> n
-    displayOption (CliOption Nothing (Just s) Nothing _) = "-" <> T.singleton s
-    displayOption (CliOption Nothing (Just s) (Just m) _) = "-" <> T.singleton s <> " " <> m
-    displayOption (CliOption Nothing _ (Just m) _) = m
-    displayOption (CliOption Nothing _ Nothing _) = ""
+
+displayOption :: CliOption -> Text
+displayOption (CliOption (Just n) Nothing (Just m) _) = "--" <> n <> " " <> m
+displayOption (CliOption (Just n) (Just s) (Just m) _) = "-" <> T.singleton s <> ",--" <> n <> " " <> m
+displayOption (CliOption (Just n) Nothing Nothing _) = "--" <> n
+displayOption (CliOption (Just n) (Just s) Nothing _) = "-" <> T.singleton s <> ",--" <> n
+displayOption (CliOption Nothing (Just s) Nothing _) = "-" <> T.singleton s
+displayOption (CliOption Nothing (Just s) (Just m) _) = "-" <> T.singleton s <> " " <> m
+displayOption (CliOption Nothing _ (Just m) _) = m
+displayOption (CliOption Nothing _ Nothing _) = ""
 
 displayColumns :: [Text] -> [Text] -> [Text]
 displayColumns cs1 cs2 = do
   let maxSize = fromMaybe 0 $ maximumMay (T.length <$> cs1)
   (\(c1, c2) -> "  " <> c1 <> T.replicate (maxSize - T.length c1) " " <> "          " <> c2) <$> zip cs1 cs2
+
+bracketText :: Text -> Text
+bracketText t = "[" <> t <> "]"
+
+displayCommandName :: Help -> Text
+displayCommandName = fromMaybe "" . helpCommandName
