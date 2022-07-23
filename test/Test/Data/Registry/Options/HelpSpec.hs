@@ -22,6 +22,7 @@ test_help_option = test "a parser can have help and version options" $ do
           <: flag @"version" @Bool True Nothing [help "Display the version"]
           <: argument @"source" @File [metavar "SOURCE", help "Source path"]
           <: argument @"target" @File [metavar "TARGET", help "Target path"]
+          <: decoderOf File
           <: defaults
 
   let fsParser = make @(Parser Command Fs) $ parsers
@@ -66,15 +67,3 @@ test_help_option = test "a parser can have help and version options" $ do
           "  copy [OPTIONS]          copy a file from SOURCE to TARGET",
           "  move [OPTIONS]          move a file from SOURCE to TARGET"
         ]
-
--- * HELPERS
-
-defaults =
-  fun defaultFieldOptions
-    <: decoders
-
-decoders =
-  funTo @Decoder File
-    <: addDecoder boolDecoder
-    <: addDecoder intDecoder
-    <: addDecoder textDecoder

@@ -5,7 +5,8 @@ module Test.Data.Registry.Options.ParserSpec where
 
 import Data.Coerce
 import Data.Registry
-import Data.Registry.Options
+import Data.Registry.Options hiding (defaults)
+import qualified Data.Registry.Options as Defaults
 import Protolude
 import Test.Data.Registry.Options.Fs
 import Test.Tasty.Hedgehogx hiding (Command, defaultValue)
@@ -142,14 +143,7 @@ getParser = make @(Parser Command a)
 constructor1 :: Parser "text" Text -> Parser "bool" Bool -> Parser "int" Int -> Parser "file" File -> Parser "Command" Constructor1
 constructor1 p1 p2 p3 p4 = Constructor1 <$> coerce p1 <*> coerce p2 <*> coerce p3 <*> coerce p4
 
-defaults = fun defaultFieldOptions <: decoders
-
-decoders =
-  funTo @Decoder File
-    <: maybeOf @Int
-    <: addDecoder intDecoder
-    <: addDecoder boolDecoder
-    <: addDecoder textDecoder
+defaults = funTo @Decoder File <: Defaults.defaults
 
 data Constructor1 = Constructor1 Text Bool Int File
   deriving (Eq, Show)
