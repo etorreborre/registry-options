@@ -47,6 +47,8 @@ instance Alternative (Parser s) where
       Right a -> Right a
       _ -> p2 lexed
 
+data Positional = Positional | NonPositional deriving (Eq, Show)
+
 unitParser :: Parser s ()
 unitParser = Parser noHelp $ \ls -> Right ((), ls)
 
@@ -86,8 +88,9 @@ parserOf = funTo @(Parser Command)
 --     - an optional default value for the field: the value to use if the field is missing
 --     - an optional active value for the field: the value to use if the field is present
 --     - a Decoder to read the value as text
-parseField :: forall s a. (KnownSymbol s, Typeable a, Show a) => FieldOptions -> Maybe Text -> Text -> [CliOption] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
-parseField fieldOptions fieldName fieldType os = do
+parseField :: forall s a. (KnownSymbol s, Typeable a, Show a) => FieldOptions -> Positional -> Text -> [CliOption] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
+parseField fieldOptions pos fieldType os = do
+  let fieldName = if pos == Positional then Nothing else Just $ getSymbol @s
   let shortName = short . makeShortName fieldOptions <$> toList fieldName
   let longName = name . toS . makeLongName fieldOptions <$> toList fieldName
   parseWith (shortName <> longName <> [metavar $ makeMetavar fieldOptions fieldType] <> os)

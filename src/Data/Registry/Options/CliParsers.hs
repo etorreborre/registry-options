@@ -24,13 +24,13 @@ import Protolude
 option :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> Registry _ _
 option os = do
   let fieldType = showType @a
-  fun (\fieldOptions -> parseField @s @a fieldOptions (Just $ getSymbol @s) fieldType os)
+  fun (\fieldOptions -> parseField @s @a fieldOptions NonPositional fieldType os)
     <+ setNoDefaultValues @s @a
 
 optionMaybe :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> Registry _ _
 optionMaybe os = do
   let fieldType = showType @a
-  fun (\fieldOptions -> parseField @s @(Maybe a) fieldOptions (Just $ getSymbol @s) fieldType os (createDefaultValue @s @(Maybe a) Nothing))
+  fun (\fieldOptions -> parseField @s @(Maybe a) fieldOptions NonPositional fieldType os (createDefaultValue @s @(Maybe a) Nothing))
     <+ maybeOf @a
     <+ noActiveValue @s @(Maybe a)
 
@@ -46,7 +46,7 @@ optionMaybe os = do
 flag :: forall s a. (KnownSymbol s, Typeable a, Show a) => a -> Maybe a -> [CliOption] -> Registry _ _
 flag activeValue defaultValue os = do
   let fieldType = showType @a
-  fun (\fieldOptions -> parseField @s @a fieldOptions (Just $ getSymbol @s) fieldType os)
+  fun (\fieldOptions -> parseField @s @a fieldOptions NonPositional fieldType os)
     <+ maybe noDefaultValue (setDefaultValue @s @a) defaultValue
     <+ setActiveValue @s @a activeValue
 
@@ -60,7 +60,7 @@ flag activeValue defaultValue os = do
 switch :: forall s. (KnownSymbol s) => [CliOption] -> Registry _ _
 switch os = do
   let fieldType = showType @Bool
-  fun (\fieldOptions -> parseField @s @Bool fieldOptions (Just $ getSymbol @s) fieldType os)
+  fun (\fieldOptions -> parseField @s @Bool fieldOptions NonPositional fieldType os)
     <+ setDefaultValue @s False
     <+ setActiveValue @s True
 
@@ -75,7 +75,7 @@ switch os = do
 argument :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> Registry _ _
 argument os = do
   let fieldType = showType @a
-  fun (\fieldOptions -> parseField @s @a fieldOptions Nothing fieldType os)
+  fun (\fieldOptions -> parseField @s @a fieldOptions Positional fieldType os)
     <+ setNoDefaultValues @s @a
 
 -- | Create a repeated argument:
@@ -119,7 +119,7 @@ positional n os = do
           -- take element at position n and make sure to keep all the other
           -- arguments intact because we need their position to parse them
           let arg = take 1 . drop n $ getArguments ls
-          let argumentParser = parseField @s @a fieldOptions Nothing (showType @a) os dv av d
+          let argumentParser = parseField @s @a fieldOptions Positional (showType @a) os dv av d
           case parseLexed argumentParser arg of
             Left e -> Left e
             Right (v, _) -> Right (v, ls)

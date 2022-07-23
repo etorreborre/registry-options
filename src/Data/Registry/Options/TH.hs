@@ -187,7 +187,7 @@ indexConstructorTypes allFields constructorFields =
 makeFieldParser :: ParserOptions -> Name -> Maybe Name -> Type -> ExpQ
 makeFieldParser parserOptions constructorName mFieldName fieldType = do
   let fieldNameType = fieldNameTypeT parserOptions constructorName mFieldName
-  let fieldName = maybe (conE "Nothing") (\fn -> conE "Just" `appE` stringE (show fn)) mFieldName
+  let fieldName = maybe (conE "Positional") (const $ conE "NonPositional") mFieldName
   varE "fun"
     `appE` lamE
       [sigP (varP "ps") (conT "FieldOptions")]
