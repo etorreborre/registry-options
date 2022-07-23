@@ -78,11 +78,15 @@ displayUsage (Just commandName) fs cs =
 
 -- | Display a CliOption usage on the command line
 displayCliOptionShortUsage :: CliOption -> Text
-displayCliOptionShortUsage (CliOption (Just n) (Just s) _ _) =  "-" <> T.singleton s <> "|" <> "--" <> n
-displayCliOptionShortUsage (CliOption _ (Just s) _ _) = "-" <> T.singleton s
-displayCliOptionShortUsage (CliOption (Just n) _ _ _) = "--" <> n
-displayCliOptionShortUsage (CliOption _ _ (Just m) _) = m
-displayCliOptionShortUsage (CliOption _ _ _ _) = ""
+displayCliOptionShortUsage (CliOption (Just n) (Just s) m _) = "-" <> T.singleton s <> "|" <> "--" <> n <> maybe "" (" " <>) (displayMetavar m)
+displayCliOptionShortUsage (CliOption _ (Just s) m _) = "-" <> T.singleton s <> maybe "" (" " <>) (displayMetavar m)
+displayCliOptionShortUsage (CliOption (Just n) _ m _) = "--" <> n <> maybe "" (" " <>) (displayMetavar m)
+displayCliOptionShortUsage (CliOption _ _ m _) = fromMaybe "" (displayMetavar m)
+
+displayMetavar :: Maybe Text -> Maybe Text
+displayMetavar Nothing = Nothing
+displayMetavar (Just "BOOL") = Nothing
+displayMetavar m = m
 
 displayOptionsHelp :: [CliOption] -> [Text]
 displayOptionsHelp [] = []

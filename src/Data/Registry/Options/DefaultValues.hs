@@ -32,9 +32,9 @@ noActiveValue :: forall s (a :: Type). (KnownSymbol s, Typeable a) => Typed (Act
 noActiveValue = fun (ActiveValue Nothing)
 
 -- | Add a default value for a given field name and type
-createDefaultValue :: forall s (a :: Type). (Typeable a, KnownSymbol s) => Dynamic -> Typed (DefaultValue s a)
-createDefaultValue = fun . DefaultValue . Just
+createDefaultValue :: forall s (a :: Type). (Typeable a, KnownSymbol s) => a -> DefaultValue s a
+createDefaultValue = DefaultValue . Just . toDyn
 
 -- | Add a default value for a given field name and type
-createActiveValue :: forall s (a :: Type). (Typeable a, KnownSymbol s) => Dynamic -> Typed (ActiveValue s a)
-createActiveValue = fun . ActiveValue . Just
+createActiveValue :: forall s (a :: Type). (Typeable a, KnownSymbol s) => a -> ActiveValue s a
+createActiveValue = ActiveValue . Just . toDyn

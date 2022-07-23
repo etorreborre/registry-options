@@ -4,7 +4,6 @@
 
 module Test.Data.Registry.Options.HelpSpec where
 
-import Data.Coerce
 import Data.Registry
 import Data.Registry.Options
 import qualified Data.Text as T
@@ -18,6 +17,7 @@ test_help_option = test "a parser can have help and version options" $ do
           <: $(makeCommand ''Move [shortDescription "move a file from SOURCE to TARGET"])
           <: $(makeCommand ''Copy [shortDescription "copy a file from SOURCE to TARGET"])
           <: switch @"force" [help "Force the action even if a file already exists with the same name"]
+          <: optionMaybe @"retries" @Int [help "number of retries in case of an error"]
           <: flag @"help" @Bool True Nothing [help "Display this help message"]
           <: flag @"version" @Bool True Nothing [help "Display the version"]
           <: argument @"source" @File [metavar "SOURCE", help "Source path"]
@@ -38,14 +38,15 @@ test_help_option = test "a parser can have help and version options" $ do
           "",
           "USAGE",
           "",
-          "  copy [-h|--help] [-f|--force] [SOURCE] [TARGET]",
+          "  copy [-h|--help] [-f|--force] [-r|--retries INT] [SOURCE] [TARGET]",
           "",
           "OPTIONS",
           "",
-          "  -h,--help BOOL           Display this help message",
-          "  -f,--force BOOL          Force the action even if a file already exists with the same name",
-          "  SOURCE                   Source path",
-          "  TARGET                   Target path"
+          "  -h,--help BOOL            Display this help message",
+          "  -f,--force BOOL           Force the action even if a file already exists with the same name",
+          "  -r,--retries INT          number of retries in case of an error",
+          "  SOURCE                    Source path",
+          "  TARGET                    Target path"
         ]
 
   T.lines (displayHelp (parserHelp fsParser))
@@ -75,16 +76,5 @@ defaults =
 decoders =
   funTo @Decoder File
     <: addDecoder boolDecoder
+    <: addDecoder intDecoder
     <: addDecoder textDecoder
-
-copyCommand :: Text -> Text -> Text -> Parser "force" Bool -> Parser "source" File -> Parser "target" File -> Parser Command Copy
-copyCommand commandName s l p1 p2 p3 = do
-  let copyParser = Copy <$> coerce p1 <*> coerce p2 <*> coerce p3
-  Parser (ch <> parserHelp copyParser) $ \case
-    (n : ls)
-      | ArgValue commandName == n ->
-        parseLexed copyParser ls
-    _ ->
-      Left $ "command not found, expected: " <> commandName
-  where
-    ch = commandHelp commandName s l

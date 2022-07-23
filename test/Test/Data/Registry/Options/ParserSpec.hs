@@ -127,10 +127,12 @@ test_parse_command = test "parse a command" $ do
         make @(Parser Command Copy) $
           fun (copyCommand "copy")
             <: switch @"force" []
+            <: setDefaultValue @"retries" @(Maybe Int) Nothing
+            <: option @"retries" @(Maybe Int) []
             <: positional @"source" @Text 0 []
             <: positional @"target" @Text 1 []
             <: defaults
-  parse p "copy -f source target" === Right (Copy True "source" "target")
+  parse p "copy -f source target" === Right (Copy True Nothing "source" "target")
 
 -- * HELPERS
 
@@ -144,6 +146,7 @@ defaults = fun defaultFieldOptions <: decoders
 
 decoders =
   funTo @Decoder File
+    <: maybeOf @Int
     <: addDecoder intDecoder
     <: addDecoder boolDecoder
     <: addDecoder textDecoder
@@ -165,10 +168,10 @@ file1 = File "file1"
 
 -- COPY EXAMPLE for 2 arguments
 
-copyCommand :: Text -> Parser "force" Bool -> Parser "source" Text -> Parser "target" Text -> Parser Command Copy
-copyCommand commandName p1 p2 p3 = Parser noHelp $ \case
+copyCommand :: Text -> Parser "force" Bool -> Parser "retries" (Maybe Int) -> Parser "source" Text -> Parser "target" Text -> Parser Command Copy
+copyCommand commandName p1 p2 p3 p4 = Parser noHelp $ \case
   (n : ls)
     | ArgValue commandName == n ->
-      parseLexed (Copy <$> coerce p1 <*> coerce p2 <*> coerce p3) ls
+      parseLexed (Copy <$> coerce p1 <*> coerce p2 <*> coerce p3 <*> coerce p4) ls
   _ ->
     Left $ "command not found, expected: " <> commandName

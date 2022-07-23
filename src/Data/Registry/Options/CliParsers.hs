@@ -27,6 +27,15 @@ option os = do
   fun (\fieldOptions -> parseField @s @a fieldOptions (Just $ getSymbol @s) fieldType os)
     <+ setNoDefaultValues @s @a
 
+optionMaybe :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> Registry _ _
+optionMaybe os = do
+  let fieldType = showType @a
+  fun (\fieldOptions -> parseField @s @(Maybe a) fieldOptions (Just $ getSymbol @s) fieldType os (createDefaultValue @s @(Maybe a) Nothing))
+    <+ maybeOf @a
+    <+ noActiveValue @s @(Maybe a)
+
+--  DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
+
 -- | Create a flag:
 --     - with a short/long name
 --     - a metavar
@@ -79,7 +88,7 @@ argument os = do
 --   This parser reads all the arguments from the command line
 arguments :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> Registry _ _
 arguments os = do
-  let p fieldOptions = \(_::DefaultValue s [a]) (_::ActiveValue s [a]) d -> do
+  let p fieldOptions = \(_ :: DefaultValue s [a]) (_ :: ActiveValue s [a]) d -> do
         let o = mconcat $ metavar (makeMetavar fieldOptions (showType @a)) : os
         Parser @s @[a] (fromCliOption o) $ \ls ->
           (,[]) <$> (decode (decodeMany d) . unlexValues $ getArguments ls)
@@ -89,11 +98,10 @@ arguments os = do
 parseCommandName :: Text -> Parser Command Text
 parseCommandName cn = Parser noHelp $ \case
   [] -> Left $ "no arguments found, expected command: " <> cn
-  n:rest ->
-    if n == ArgValue cn then
-      Right (cn, rest)
-    else
-      Left $ "expected command: " <> cn <> ", found: " <> displayLexed n
+  n : rest ->
+    if n == ArgValue cn
+      then Right (cn, rest)
+      else Left $ "expected command: " <> cn <> ", found: " <> displayLexed n
 
 -- | Create a positional argument, to parse the nth value (starting from 0):
 --     - with no short/long names
@@ -121,11 +129,11 @@ positional n os = do
 
 -- | Set an active value for a given field name and field type
 setActiveValue :: forall s a. (KnownSymbol s, Typeable a) => a -> Typed (ActiveValue s a)
-setActiveValue = createActiveValue @s @a . toDyn
+setActiveValue = fun . createActiveValue @s @a
 
 -- | Set a default value for a given field name and field type
 setDefaultValue :: forall s a. (KnownSymbol s, Typeable a) => a -> Typed (DefaultValue s a)
-setDefaultValue = createDefaultValue @s @a . toDyn
+setDefaultValue = fun . createDefaultValue @s @a
 
 -- | Allow to specify that a given field name and type has some default/active values
 setDefaultValues :: forall s a. (KnownSymbol s, Typeable a) => Maybe a -> Maybe a -> Registry _ _

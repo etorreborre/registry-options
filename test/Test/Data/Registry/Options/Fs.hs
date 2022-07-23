@@ -3,12 +3,11 @@ module Test.Data.Registry.Options.Fs where
 import Data.String
 import Protolude
 
--- COPY EXAMPLE for 2 arguments
-
 data Copy
   = CopyHelp {copyHelp :: Bool}
   | Copy
       { copyForce :: Bool,
+        copyRetries :: Maybe Int,
         copySource :: File,
         copyTarget :: File
       }
