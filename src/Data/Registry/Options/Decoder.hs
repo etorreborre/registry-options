@@ -42,6 +42,10 @@ decodeMaybe d = Decoder $ \t -> either (const $ pure Nothing) (Right . Just) (de
 manyOf :: forall a. Typeable a => Typed (Decoder a -> Decoder [a])
 manyOf = fun decodeMany
 
--- | Create a Decoder for [a]
+-- | Create a Decoder for [a] as a comma-separated string
 decodeMany :: forall a. Typeable a => Decoder a -> Decoder [a]
-decodeMany d = Decoder $ \t -> for (T.strip <$> T.splitOn " " t) (decode d)
+decodeMany = decodeManySeparated ","
+
+-- | Create a Decoder for [a] as a separated string
+decodeManySeparated :: forall a. Typeable a => Text -> Decoder a -> Decoder [a]
+decodeManySeparated separator d = Decoder $ \t -> for (T.strip <$> T.splitOn separator t) (decode d)

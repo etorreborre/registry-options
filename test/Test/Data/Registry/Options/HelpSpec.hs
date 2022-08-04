@@ -12,19 +12,6 @@ import Test.Data.Registry.Options.Fs
 import Test.Tasty.Hedgehogx hiding (Command)
 
 test_help_option = test "a parser can have help and version options" $ do
-  let parsers =
-        $(makeCommand ''Fs [shortDescription "a utility to copy and move files"])
-          <: $(makeCommand ''Move [shortDescription "move a file from SOURCE to TARGET"])
-          <: $(makeCommand ''Copy [shortDescription "copy a file from SOURCE to TARGET"])
-          <: switch @"force" [help "Force the action even if a file already exists with the same name"]
-          <: optionMaybe @"retries" @Int [help "number of retries in case of an error"]
-          <: flag @"help" @Bool True Nothing [help "Display this help message"]
-          <: flag @"version" @Bool True Nothing [help "Display the version"]
-          <: argument @"source" @File [metavar "SOURCE", help "Source path"]
-          <: argument @"target" @File [metavar "TARGET", help "Target path"]
-          <: decoderOf File
-          <: defaults
-
   let fsParser = make @(Parser Command Fs) $ parsers
   let copyParser = make @(Parser Command Copy) $ parsers
 
@@ -67,3 +54,16 @@ test_help_option = test "a parser can have help and version options" $ do
           "  copy [OPTIONS]          copy a file from SOURCE to TARGET",
           "  move [OPTIONS]          move a file from SOURCE to TARGET"
         ]
+
+parsers =
+  $(makeCommand ''Fs [shortDescription "a utility to copy and move files"])
+    <: $(makeCommand ''Move [shortDescription "move a file from SOURCE to TARGET"])
+    <: $(makeCommand ''Copy [shortDescription "copy a file from SOURCE to TARGET"])
+    <: switch @"force" [help "Force the action even if a file already exists with the same name"]
+    <: optionMaybe @"retries" @Int [help "number of retries in case of an error"]
+    <: flag @"help" @Bool True Nothing [help "Display this help message"]
+    <: flag @"version" @Bool True Nothing [help "Display the version"]
+    <: argument @"source" @File [metavar "SOURCE", help "Source path"]
+    <: argument @"target" @File [metavar "TARGET", help "Target path"]
+    <: decoderOf File
+    <: defaults
