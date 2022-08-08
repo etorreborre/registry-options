@@ -78,7 +78,7 @@ OPTIONS
 
 # You want to know more?
 
-  - fully developed [example][example]: we explain in detail all the declarations about and their role
+  - fully developed [example][example]: we explain in detail all the declarations above and their role
   - motivations: why was this library created? How does it differ from similar libraries?
   - reference guide: all the primitives for creating, configuring and assembling parsers
   - how-to guide
@@ -88,3 +88,4 @@ OPTIONS
        - parse configuration file variables
 
 [example]: http://github.com/etorreborre/registry-options/blob/main/doc/example.md
+[motivations]: http://github.com/etorreborre/registry-options/blob/main/doc/motivations.md
