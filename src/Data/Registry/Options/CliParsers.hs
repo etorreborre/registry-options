@@ -4,6 +4,7 @@
 module Data.Registry.Options.CliParsers where
 
 import Data.Dynamic
+import Data.Either
 import Data.Registry
 import Data.Registry.Options.CliOption
 import Data.Registry.Options.Decoder
@@ -88,12 +89,30 @@ argument os = do
 --   This parser reads all the arguments from the command line
 arguments :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> Registry _ _
 arguments os = do
-  let p fieldOptions = \(_ :: DefaultValue s [a]) (_ :: ActiveValue s [a]) d -> do
+  let p fieldOptions = \d -> do
         let o = mconcat $ metavar (makeMetavar fieldOptions (showType @a)) : os
         Parser @s @[a] (fromCliOption o) $ \ls ->
           (,[]) <$> (decode (decodeMany d) . unlexValues $ getArguments ls)
   fun p
     <+ setNoDefaultValues @s @[a]
+
+-- | Create a flag where the name of the flag can be decoded as a value:
+--   The [CliOption] list can be used to override values or provide a help
+named :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> Registry _ _
+named os = do
+  let fieldType = showType @a
+  let p = \(decoder :: Decoder a) (defaultValue :: DefaultValue s a) -> Parser @s @a (fromCliOption $ mconcat os) $ \lexed -> do
+        case partitionEithers $ (\n -> (n,) <$> decode decoder n) <$> getFlagNames lexed of
+          (_, matched@((_, a) : _)) -> Right (a, filterFlags (fst <$> matched) lexed)
+          _ -> case getDefaultValue defaultValue of
+            Just def -> pure (def, lexed)
+            _ -> Left $ "Flag not found for data type `" <> fieldType <> "`"
+
+  fun p
+    <+ setNoDefaultValues @s @a
+
+  where
+    filterFlags names = filter (\case FlagName t -> t `notElem` names; _ -> True)
 
 parseCommandName :: Text -> Parser Command Text
 parseCommandName cn = Parser noHelp $ \case

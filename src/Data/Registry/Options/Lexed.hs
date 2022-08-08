@@ -48,6 +48,10 @@ getArguments lexed =
     then drop 1 $ dropWhile (not . isDoubleDash) lexed
     else drop (if not $ all isArgValue lexed then 1 else 0) $ dropWhile (not . isArgValue) lexed
 
+-- | Return flag names from lexed values
+getFlagNames :: [Lexed] -> [Text]
+getFlagNames = mapMaybe (\case FlagName n -> Just n; _ -> Nothing)
+
 -- | Return True for an ArgValue
 isArgValue :: Lexed -> Bool
 isArgValue (ArgValue _) = True

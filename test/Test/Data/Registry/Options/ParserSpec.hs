@@ -135,6 +135,19 @@ test_parse_command = test "parse a command" $ do
             <: defaults
   parse p "copy -f source target" === Right (Copy True Nothing "source" "target")
 
+test_parse_named = test "parse a flag name" $ do
+  let p = make @(Parser "language" Language) $
+           named @"language" @Language []
+        <: addDecoder languageDecoder
+        <: defaults
+
+  parse p "--haskell" === Right Haskell
+  parse p "--idris" === Right Idris
+  parse p "--other" === Left "Flag not found for data type `Language`"
+
+  annotate "matched flags must be removed from the input strings"
+  parseLexed p (lexArgs ["--haskell", "--other"]) === Right (Haskell, [FlagName "other"])
+
 -- * HELPERS
 
 getParser :: forall a. (Typeable a) => Registry _ _ -> Parser Command a
@@ -169,3 +182,10 @@ copyCommand commandName p1 p2 p3 p4 = Parser noHelp $ \case
       parseLexed (Copy <$> coerce p1 <*> coerce p2 <*> coerce p3 <*> coerce p4) ls
   _ ->
     Left $ "command not found, expected: " <> commandName
+
+data Language = Haskell | Idris deriving (Eq, Show)
+
+languageDecoder :: Text -> Either Text Language
+languageDecoder "haskell" = Right Haskell
+languageDecoder "idris" = Right Idris
+languageDecoder _other = Left "wrong language, expected: Haskell or Idris"
