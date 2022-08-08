@@ -64,11 +64,13 @@ isDoubleDash _ = False
 
 -- | Display lexed values
 unlexValues :: [Lexed] -> Text
-unlexValues = T.intercalate " " . mapMaybe lexedValue
-  where
-    lexedValue :: Lexed -> Maybe Text
-    lexedValue (ArgValue t) = Just t
-    lexedValue _ = Nothing
+unlexValues = T.intercalate " " . argValues
+
+-- | Extract the Text from ArgValues
+argValues :: [Lexed] -> [Text]
+argValues = mapMaybe $ \case
+  ArgValue t -> Just t
+  _ -> Nothing
 
 -- | Return True if some text starts with `-`
 isDashed :: Text -> Bool

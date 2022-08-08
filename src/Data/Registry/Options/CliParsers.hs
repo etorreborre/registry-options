@@ -92,7 +92,9 @@ arguments os = do
   let p fieldOptions = \d -> do
         let o = mconcat $ metavar (makeMetavar fieldOptions (showType @a)) : os
         Parser @s @[a] (fromCliOption o) $ \ls ->
-          (,[]) <$> (decode (decodeMany d) . unlexValues $ getArguments ls)
+          case for (argValues ls) $ decode d of
+            Right as -> pure (as,[])
+            Left e -> Left e
   fun p
     <+ setNoDefaultValues @s @[a]
 

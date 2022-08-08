@@ -83,7 +83,7 @@ test_add_help = test "the help text can be specified for each option, and names 
           <: defaults
   success
 
-test_parse_many_arguments = test "parse options and arguments with repeated values" $ do
+test_parse_many_arguments = test "parse arguments with repeated values" $ do
   let p = make @(Parser "files" [File]) (arguments @"files" @File [] <: defaults)
   parse p "file1 file2" === Right [File "file1", File "file2"]
 
