@@ -13,7 +13,7 @@ import Data.Registry.Options.Decoder
 import Data.Registry.Options.DefaultValues
 import Data.Registry.Options.FieldOptions
 import Data.Registry.Options.Help
-import Data.Registry.Options.Lexed
+import Data.Registry.Options.Lexemes
 import qualified Data.Text as T
 import GHC.TypeLits
 import Protolude
@@ -23,11 +23,11 @@ import Type.Reflection
 --   for to be used as "s" where s is a Symbol
 --   For example "s" can be the name of a field, `force` in a data type
 --
---   A Parser generally returns all the original lexed values minus the option name and value just parsed
---   This is a bit different for positional arguments for example where the whole list of lexed values is kept
+--   A Parser generally returns all the original lexemes values minus the option name and value just parsed
+--   This is a bit different for positional arguments for example where the whole list of lexemes values is kept
 data Parser (s :: Symbol) a = Parser
   { parserHelp :: Help,
-    parseLexed :: [Lexed] -> Either Text (a, [Lexed])
+    parseLexed :: Lexemes -> Either Text (a, Lexemes)
   }
   deriving (Functor)
 
@@ -42,10 +42,10 @@ instance Applicative (Parser s) where
 instance Alternative (Parser s) where
   empty = Parser noHelp (const $ Left "nothing to parse")
 
-  Parser h1 p1 <|> Parser h2 p2 = Parser (h1 `alt` h2) $ \lexed ->
-    case p1 lexed of
+  Parser h1 p1 <|> Parser h2 p2 = Parser (h1 `alt` h2) $ \lexemes ->
+    case p1 lexemes of
       Right a -> Right a
-      _ -> p2 lexed
+      _ -> p2 lexemes
 
 data Positional = Positional | NonPositional deriving (Eq, Show)
 
@@ -80,6 +80,39 @@ parse p = parseArgs p . fmap T.strip . T.splitOn " "
 parserOf :: forall a b. (ApplyVariadic (Parser Command) a b, Typeable a, Typeable b) => a -> Typed b
 parserOf = funTo @(Parser Command)
 
+maybeParser :: Parser s a -> Parser s (Maybe a)
+maybeParser (Parser h p) = Parser h $ \lexemes ->
+  case p lexemes of
+    Right (a, ls) -> Right (Just a, ls)
+    Left _ -> Right (Nothing, lexemes)
+
+listParser :: Parser s a -> Parser s [a]
+listParser parser@(Parser h p) = Parser h $ \lexemes ->
+  case p lexemes of
+    Right (a, ls) ->
+      case parseLexed (listParser parser) ls of
+        Right (as, ls') -> Right (a : as, ls')
+        Left e -> Left e
+    Left _ -> Right ([], lexemes)
+
+list1Parser :: Parser s a -> Parser s [a]
+list1Parser parser@(Parser h p) = Parser h $ \lexemes ->
+  case p lexemes of
+    Right (a, ls) ->
+      case parseLexed (listParser parser) ls of
+        Right (as, ls') -> Right (a : as, ls')
+        Left e -> Left e
+    Left e -> Left e
+
+nonEmptyParser :: Parser s a -> Parser s (NonEmpty a)
+nonEmptyParser parser@(Parser h p) = Parser h $ \lexemes ->
+  case p lexemes of
+    Right (a, ls) ->
+      case parseLexed (listParser parser) ls of
+        Right (as, ls') -> Right (a :| as, ls')
+        Left e -> Left e
+    Left e -> Left e
+
 -- | Create a Parser for command-line field given:
 --     - fieldOptions to derive long/short/metavar names from a field name
 --     - a field name. If it is missing, then we can only parse arguments
@@ -102,64 +135,61 @@ parseField fieldOptions pos fieldType os = do
 --     - a Decoder to read the value as text
 parseWith :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
 parseWith os defaultValue activeValue d = do
-  Parser (fromCliOption cliOption) $ \lexed ->
+  Parser (fromCliOption cliOption) $ \ls ->
     case getName cliOption of
       -- named option, flag or switch
-      Just n -> do
-        let (value, ls) = findOptionValue n lexed
-        case value of
+      Just n ->
+        case takeOptionValue n ls of
           Nothing ->
             (,ls) <$> returnDefaultValue
-          Just Nothing ->
-            (,ls) <$> returnActiveValue
-          Just (Just v) ->
-            -- if we are dealing with a flag it is possible that
-            -- the value which was retrieved is actually an argument
+          Just (_, Nothing, ls') ->
+            (,ls') <$> returnActiveValue
+          Just (k, Just v, ls') ->
+            -- if we have a flag, then the value v just retrieved is an argument
+            -- in that case we move all the values for that flag to arguments
             case getActiveValue activeValue of
-              Just active -> pure (active, filter (not . sameName n) lexed)
-              Nothing -> (,ls) <$> decode d v
+              Just active -> pure (active, popFlag k ls)
+              Nothing -> (,ls') <$> decode d v
       -- arguments
       Nothing ->
-        case getArguments lexed of
-          [] -> (,lexed) <$> returnDefaultValue
-          other -> (,drop 1 lexed) <$> decode d (unlexValues $ take 1 other)
+        case takeArgumentValue ls of
+          Nothing -> (,ls) <$> returnDefaultValue
+          Just (a, ls') -> (,ls') <$> decode d a
   where
     cliOption = mconcat os
 
     returnActiveValue = case getActiveValue activeValue of
       Just def -> pure def
-      Nothing -> Left $ "missing active value for argument: " <> displayCliOptionUsage cliOption
+      Nothing -> Left $ "missing active value for argument: " <> displayCliOptionName cliOption
 
     returnDefaultValue = case getDefaultValue defaultValue of
       Just def -> pure def
-      Nothing -> Left $ "missing default value for argument: " <> displayCliOptionUsage cliOption
+      Nothing -> Left $ "missing default value for argument: " <> displayCliOptionName cliOption
 
--- | Find the value for a given option
---   and remove the option and / or its value for the list of command-line arguments
-findOptionValue :: Name -> [Lexed] -> (Maybe (Maybe Text), [Lexed])
-findOptionValue _ [] = (Nothing, [])
-findOptionValue n ls = do
-  let before = takeWhile (not . sameName n) ls
-  let args = dropWhile (not . sameName n) ls
-  case args of
-    [_] ->
-      (Just Nothing, filter (not . sameName n) ls)
-    _ : FlagName _ : _ ->
-      (Just Nothing, filter (not . sameName n) ls)
-    _ : DoubleDash : _ ->
-      (Just Nothing, filter (not . sameName n) ls)
-    _ : ArgValue v : after ->
-      (Just (Just v), before <> after)
-    _ ->
-      (Nothing, ls)
+-- | Find a value for a given option name
+--   return Nothing if the name is not found
+--   If the name is found return
+--     - Nothing if there is no value
+--     - the first value for that name if there is is one and remove the value associated to the flag
+--   if there aren't any values left associated to a flag, remove it
+takeOptionValue :: Name -> Lexemes -> Maybe (Text, Maybe Text, Lexemes)
+takeOptionValue n lexemes = do
+  let keys = case n of LongShort l s -> [l, s]; LongOnly l -> [l]; ShortOnly s -> [s]
+  headMay $ mapMaybe takeValue keys
+  where
+    takeValue :: Text -> Maybe (Text, Maybe Text, Lexemes)
+    takeValue key =
+      case getValue key lexemes of
+        Nothing -> Nothing
+        Just v -> Just (key, v, popOptionValue key lexemes)
 
--- | Return True if a Name is represented by a given FlagName on the command line
---   For example LongShort "force" 'f' and FlagName "force"
-sameName :: Name -> Lexed -> Bool
-sameName (LongShort n s) (FlagName f) = n == f || s == f
-sameName (LongOnly n) (FlagName f) = n == f
-sameName (ShortOnly n) (FlagName f) = n == f
-sameName _ _ = False
+-- | Take the first argument value available and remove it from the list
+--   of lexed arguments
+takeArgumentValue :: Lexemes -> Maybe (Text, Lexemes)
+takeArgumentValue lexemes = do
+  case getArguments lexemes of
+    [] -> Nothing
+    (a : _) -> Just (a, popArgumentValue lexemes)
 
 -- | Return the textual representation of a symbol (this is a fully qualified string)
 getSymbol :: forall s. (KnownSymbol s) => Text

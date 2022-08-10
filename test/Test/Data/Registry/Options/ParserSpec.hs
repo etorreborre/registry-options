@@ -15,7 +15,7 @@ test_parse_option = test "parse an option" $ do
   let p = make @(Parser "text" Text) (option @"text" @Text [] <: defaults)
   parse p "--t eric" === Right "eric"
   parse p "--text eric" === Right "eric"
-  parse p "--typo eric" === Left "missing default value for argument: [-t|--text TEXT]"
+  parse p "--typo eric" === Left "missing default value for argument: text"
 
 test_parse_flag = test "parse a flag" $ do
   -- with no default value
@@ -29,7 +29,7 @@ test_parse_flag = test "parse a flag" $ do
   parse p "--int" === Right 10
   parse p "-i" === Right 10
 
-  parse p "--typo" === Left "missing default value for argument: [-i|--int INT]"
+  parse p "--typo" === Left "missing default value for argument: int"
 
   -- with a default value
   let p1 = make @(Parser "int" Int) (flag @"int" @Int 10 (Just 100) [] <: defaults)
@@ -83,9 +83,54 @@ test_add_help = test "the help text can be specified for each option, and names 
           <: defaults
   success
 
-test_parse_many_arguments = test "parse arguments with repeated values" $ do
-  let p = make @(Parser "files" [File]) (arguments @"files" @File [] <: defaults)
+test_parse_repeated_options = test "parse options with repeated values" $ do
+  let r =
+          fun (nonEmptyParser @"filesNonEmpty" @File)
+       <: fun (list1Parser @"files1" @File)
+       <: fun (listParser @"files" @File)
+       <: option @"filesNonEmpty" @File []
+       <: option @"files1" @File []
+       <: option @"files" @File []
+       <: defaults
+
+  let p = make @(Parser "files" [File]) r
+  let p1 = make @(Parser "files1" [File]) r
+  let pNonEmpty = make @(Parser "filesNonEmpty" (NonEmpty File)) r
+
+  parse p "" === Right []
+  parse p "--files" === Right []
+  parse p "--files file1 file2 -- args" === Right [File "file1", File "file2"]
+
+  parse p1 "" === Left "missing default value for argument: files1"
+  parse p1 "--files1" === Left "missing active value for argument: files1"
+  parse p1 "--files1 file1 file2 -- args" === Right [File "file1", File "file2"]
+
+  parse pNonEmpty "" === Left "missing default value for argument: files-non-empty"
+  parse pNonEmpty "--files-non-empty" === Left "missing active value for argument: files-non-empty"
+  parse pNonEmpty "--files-non-empty file1 file2 -- args" === Right (File "file1" :| [File "file2"])
+
+test_parse_repeated_arguments = test "parse arguments with repeated values" $ do
+  let r =
+          fun (nonEmptyParser @"filesNonEmpty" @File)
+       <: fun (list1Parser @"files1" @File)
+       <: fun (listParser @"files" @File)
+       <: argument @"filesNonEmpty" @File []
+       <: argument @"files1" @File []
+       <: argument @"files" @File []
+       <: defaults
+
+  let p = make @(Parser "files" [File]) r
+  let p1 = make @(Parser "files1" [File]) r
+  let pNonEmpty = make @(Parser "filesNonEmpty" (NonEmpty File)) r
+
+  parse p "" === Right []
   parse p "file1 file2" === Right [File "file1", File "file2"]
+
+  parse p1 "" === Left "missing default value for argument: FILE"
+  parse p1 "file1 file2" === Right [File "file1", File "file2"]
+
+  parse pNonEmpty "" === Left "missing default value for argument: FILE"
+  parse pNonEmpty "file1 file2" === Right (File "file1" :| [File "file2"])
 
 test_parse_optional = test "parse optional options and arguments" $ do
   let parsers =
@@ -110,17 +155,17 @@ test_parse_optional = test "parse optional options and arguments" $ do
 test_parse_alternatives = test "parse alternative options and arguments" $ do
   let parsers =
         fun simpleAlternative
-          <: argument @"text" @Text []
           <: flag @"bool" True Nothing []
+          <: option @"text" @Text []
           <: option @"int" @Int []
           <: defaults
 
   let p = getParser @SimpleAlternative parsers
-  parse p "" === Left "missing default value for argument: [-i|--int INT]"
+  parse p "" === Left "missing default value for argument: int"
   parse p "-b" === Right (SimpleAlternative1 True)
-  parse p "hello" === Right (SimpleAlternative2 "hello")
+  parse p "--text hello" === Right (SimpleAlternative2 "hello")
 
-  findOptionValue (LongOnly "repeat") [FlagName "repeat", ArgValue "10"] === (Just (Just "10"), [])
+  takeOptionValue (LongOnly "repeat") (optionLexeme "repeat" "10") === Just ("repeat", Just "10", mempty)
   parse p "--int 10" === Right (SimpleAlternative3 10)
 
 test_parse_command = test "parse a command" $ do
@@ -129,24 +174,26 @@ test_parse_command = test "parse a command" $ do
           fun (copyCommand "copy")
             <: switch @"force" []
             <: setDefaultValue @"retries" @(Maybe Int) Nothing
-            <: option @"retries" @(Maybe Int) []
+            <: fun (maybeParser @"retries" @Int)
+            <: option @"retries" @Int []
             <: positional @"source" @Text 0 []
             <: positional @"target" @Text 1 []
             <: defaults
   parse p "copy -f source target" === Right (Copy True Nothing "source" "target")
 
 test_parse_named = test "parse a flag name" $ do
-  let p = make @(Parser "language" Language) $
-           named @"language" @Language []
-        <: addDecoder languageDecoder
-        <: defaults
+  let p =
+        make @(Parser "language" Language) $
+          named @"language" @Language []
+            <: addDecoder languageDecoder
+            <: defaults
 
   parse p "--haskell" === Right Haskell
   parse p "--idris" === Right Idris
   parse p "--other" === Left "Flag not found for data type `Language`"
 
   annotate "matched flags must be removed from the input strings"
-  parseLexed p (lexArgs ["--haskell", "--other"]) === Right (Haskell, [FlagName "other"])
+  parseLexed p (lexArgs ["--haskell", "--other"]) === Right (Haskell, flagLexeme "other")
 
 -- * HELPERS
 
@@ -176,12 +223,12 @@ file1 = File "file1"
 -- COPY EXAMPLE for 2 arguments
 
 copyCommand :: Text -> Parser "force" Bool -> Parser "retries" (Maybe Int) -> Parser "source" Text -> Parser "target" Text -> Parser Command Copy
-copyCommand commandName p1 p2 p3 p4 = Parser noHelp $ \case
-  (n : ls)
-    | ArgValue commandName == n ->
-      parseLexed (Copy <$> coerce p1 <*> coerce p2 <*> coerce p3 <*> coerce p4) ls
-  _ ->
-    Left $ "command not found, expected: " <> commandName
+copyCommand commandName p1 p2 p3 p4 = Parser noHelp $ \ls ->
+  case lexedArguments ls of
+    (n : _) | commandName == n ->
+      parseLexed (Copy <$> coerce p1 <*> coerce p2 <*> coerce p3 <*> coerce p4) (popArgumentValue ls)
+    _ ->
+      Left $ "command not found, expected: " <> commandName
 
 data Language = Haskell | Idris deriving (Eq, Show)
 

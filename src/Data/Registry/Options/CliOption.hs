@@ -1,7 +1,8 @@
 module Data.Registry.Options.CliOption where
 
 import qualified Data.Text as T
-import Protolude
+import Protolude as P
+import Prelude (show)
 
 -- | Optional values used to document a command line option
 --    - name is a "long" name, like `launch-missiles`
@@ -55,14 +56,12 @@ displayCliOptionUsage (CliOption Nothing (Just s) (Just m) _) = "[-" <> T.single
 displayCliOptionUsage (CliOption Nothing _ (Just m) _) = m
 displayCliOptionUsage (CliOption Nothing _ Nothing _) = ""
 
--- | Represent the possible combinations of commandline option names
---   Note that we use Text to represent short names instead of Char
---   for an easier comparison with lexed values
-data Name
-  = LongShort Text Text
-  | LongOnly Text
-  | ShortOnly Text
-  deriving (Eq, Show)
+-- | Display a CliOption name
+displayCliOptionName :: CliOption -> Text
+displayCliOptionName o =
+  case getName o of
+    Just n -> displayName n
+    Nothing -> fromMaybe "<empty>" (_metavar o)
 
 -- | Return the Name of a CliOption
 getName :: CliOption -> Maybe Name
@@ -72,3 +71,20 @@ getName o =
     (Just n, Nothing) -> Just $ LongOnly n
     (Nothing, Just s) -> Just $ ShortOnly $ T.singleton s
     (Nothing, Nothing) -> Nothing
+
+-- | Represent the possible combinations of commandline option names
+--   Note that we use Text to represent short names instead of Char
+--   for an easier comparison with lexed values
+data Name
+  = LongShort Text Text
+  | LongOnly Text
+  | ShortOnly Text
+  deriving (Eq)
+
+instance Show Name where
+  show = toS . displayName
+
+displayName :: Name -> Text
+displayName (LongShort t _) = t
+displayName (LongOnly t) = t
+displayName (ShortOnly t) = t

@@ -60,7 +60,8 @@ parsers =
     <: $(makeCommand ''Move [shortDescription "move a file from SOURCE to TARGET"])
     <: $(makeCommand ''Copy [shortDescription "copy a file from SOURCE to TARGET"])
     <: switch @"force" [help "Force the action even if a file already exists with the same name"]
-    <: optionMaybe @"retries" @Int [help "number of retries in case of an error"]
+    <: fun (maybeParser @"retries" @Int)
+    <: option @"retries" @Int [help "number of retries in case of an error"]
     <: flag @"help" @Bool True Nothing [help "Display this help message"]
     <: flag @"version" @Bool True Nothing [help "Display the version"]
     <: argument @"source" @File [metavar "SOURCE", help "Source path"]

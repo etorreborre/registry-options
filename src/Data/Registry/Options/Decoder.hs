@@ -30,14 +30,6 @@ boolDecoder t = maybe (Left $ "cannot read as a Bool: " <> t) Right (readMaybe t
 textDecoder :: Text -> Either Text Text
 textDecoder t = if T.null t then Left "empty text" else Right t
 
--- | Create a Decoder for Maybe a
-maybeOf :: forall a. Typeable a => Typed (Decoder a -> Decoder (Maybe a))
-maybeOf = fun decodeMaybe
-
--- | Create a Decoder for Maybe a
-decodeMaybe :: forall a. Typeable a => Decoder a -> Decoder (Maybe a)
-decodeMaybe d = Decoder $ \t -> either (const $ pure Nothing) (Right . Just) (decode d t)
-
 -- | Create a Decoder for [a]
 manyOf :: forall a. Typeable a => Typed (Decoder a -> Decoder [a])
 manyOf = fun decodeMany

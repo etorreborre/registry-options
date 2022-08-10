@@ -30,7 +30,7 @@ library
       Data.Registry.Options.DefaultValues
       Data.Registry.Options.FieldOptions
       Data.Registry.Options.Help
-      Data.Registry.Options.Lexed
+      Data.Registry.Options.Lexemes
       Data.Registry.Options.Parser
       Data.Registry.Options.Text
       Data.Registry.Options.TH
@@ -73,6 +73,7 @@ library
       base >=4.7 && <5
     , bytestring >=0.10 && <1
     , containers >=0.2 && <1
+    , multimap >=1.2 && <2
     , protolude ==0.3.*
     , registry >=0.2 && <0.4
     , template-haskell >=2.13 && <3.0
@@ -91,7 +92,7 @@ test-suite spec
       Test.Data.Registry.Options.Fs
       Test.Data.Registry.Options.GitSpec
       Test.Data.Registry.Options.HelpSpec
-      Test.Data.Registry.Options.LexedSpec
+      Test.Data.Registry.Options.LexemesSpec
       Test.Data.Registry.Options.ParserSpec
       Test.Data.Registry.Options.TextSpec
       Paths_registry_options
@@ -133,6 +134,7 @@ test-suite spec
     , bytestring >=0.10 && <1
     , containers >=0.2 && <1
     , hedgehog
+    , multimap >=1.2 && <2
     , protolude ==0.3.*
     , registry >=0.2 && <0.4
     , registry-hedgehog

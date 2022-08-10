@@ -11,7 +11,7 @@ import Data.Registry.Options.Decoder
 import Data.Registry.Options.DefaultValues
 import Data.Registry.Options.FieldOptions
 import Data.Registry.Options.Help
-import Data.Registry.Options.Lexed
+import Data.Registry.Options.Lexemes
 import Data.Registry.Options.Parser
 import GHC.TypeLits
 import Protolude
@@ -27,15 +27,6 @@ option os = do
   let fieldType = showType @a
   fun (\fieldOptions -> parseField @s @a fieldOptions NonPositional fieldType os)
     <+ setNoDefaultValues @s @a
-
-optionMaybe :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> Registry _ _
-optionMaybe os = do
-  let fieldType = showType @a
-  fun (\fieldOptions -> parseField @s @(Maybe a) fieldOptions NonPositional fieldType os (createDefaultValue @s @(Maybe a) Nothing))
-    <+ maybeOf @a
-    <+ noActiveValue @s @(Maybe a)
-
---  DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
 
 -- | Create a flag:
 --     - with a short/long name
@@ -79,50 +70,28 @@ argument os = do
   fun (\fieldOptions -> parseField @s @a fieldOptions Positional fieldType os)
     <+ setNoDefaultValues @s @a
 
--- | Create a repeated argument:
---     - with no short/long names
---     - a metavar
---     - no active/default values
---
---   The [CliOption] list can be used to override values or provide a help
---
---   This parser reads all the arguments from the command line
-arguments :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> Registry _ _
-arguments os = do
-  let p fieldOptions = \d -> do
-        let o = mconcat $ metavar (makeMetavar fieldOptions (showType @a)) : os
-        Parser @s @[a] (fromCliOption o) $ \ls ->
-          case for (argValues ls) $ decode d of
-            Right as -> pure (as,[])
-            Left e -> Left e
-  fun p
-    <+ setNoDefaultValues @s @[a]
-
 -- | Create a flag where the name of the flag can be decoded as a value:
 --   The [CliOption] list can be used to override values or provide a help
 named :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> Registry _ _
 named os = do
   let fieldType = showType @a
-  let p = \(decoder :: Decoder a) (defaultValue :: DefaultValue s a) -> Parser @s @a (fromCliOption $ mconcat os) $ \lexed -> do
-        case partitionEithers $ (\n -> (n,) <$> decode decoder n) <$> getFlagNames lexed of
-          (_, matched@((_, a) : _)) -> Right (a, filterFlags (fst <$> matched) lexed)
+  let p = \(decoder :: Decoder a) (defaultValue :: DefaultValue s a) -> Parser @s @a (fromCliOption $ mconcat os) $ \ls -> do
+        case partitionEithers $ (\n -> (n,) <$> decode decoder n) <$> getFlagNames ls of
+          (_, (f, a) : _) -> Right (a, popFlag f ls)
           _ -> case getDefaultValue defaultValue of
-            Just def -> pure (def, lexed)
+            Just def -> pure (def, ls)
             _ -> Left $ "Flag not found for data type `" <> fieldType <> "`"
-
   fun p
     <+ setNoDefaultValues @s @a
 
-  where
-    filterFlags names = filter (\case FlagName t -> t `notElem` names; _ -> True)
-
 parseCommandName :: Text -> Parser Command Text
-parseCommandName cn = Parser noHelp $ \case
-  [] -> Left $ "no arguments found, expected command: " <> cn
-  n : rest ->
-    if n == ArgValue cn
-      then Right (cn, rest)
-      else Left $ "expected command: " <> cn <> ", found: " <> displayLexed n
+parseCommandName cn = Parser noHelp $ \ls ->
+  case lexedArguments ls of
+    [] -> Left $ "no arguments found, expected command: " <> cn
+    n : _ ->
+      if n == cn
+        then Right (cn, popArgumentValue ls)
+        else Left $ "expected command: " <> cn <> ", found: " <> n
 
 -- | Create a positional argument, to parse the nth value (starting from 0):
 --     - with no short/long names
@@ -134,16 +103,17 @@ parseCommandName cn = Parser noHelp $ \case
 --   When the argument is read, its value is left in the list of lexed values
 positional :: forall s a. (KnownSymbol s, Typeable a, Show a) => Int -> [CliOption] -> Registry _ _
 positional n os = do
-  let p fieldOptions = \dv av d -> do
+  let p fieldOptions = \d -> do
         let o = mconcat $ metavar (makeMetavar fieldOptions (showType @a)) : os
         Parser @s @a (fromCliOption o) $ \ls -> do
           -- take element at position n and make sure to keep all the other
           -- arguments intact because we need their position to parse them
-          let arg = take 1 . drop n $ getArguments ls
-          let argumentParser = parseField @s @a fieldOptions Positional (showType @a) os dv av d
-          case parseLexed argumentParser arg of
-            Left e -> Left e
-            Right (v, _) -> Right (v, ls)
+          case headMay . drop n $ getArguments ls of
+            Nothing -> Left $ "No argument to parse at position " <> show n
+            Just arg ->
+              case decode d arg of
+                Left e -> Left e
+                Right v -> Right (v, ls)
 
   fun p
     <+ setNoDefaultValues @s @a
