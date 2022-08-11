@@ -49,6 +49,20 @@ test_parse_switch = test "parse a switch" $ do
   parse p "--bool" === Right True
   parse p "--typo" === Right False
 
+test_parse_switches = test "parse several short switches" $ do
+  let f (pa :: Parser "a" Bool) (pb :: Parser "b" Bool) (pc :: Parser "c" Bool) =
+        (,,) <$> coerceParser pa <*> coerceParser pb <*> coerceParser pc :: Parser "abc" (Bool, Bool, Bool)
+  let r =
+        fun f
+          <: switch @"a" []
+          <: switch @"b" []
+          <: switch @"c" []
+          <: defaults
+
+  let p = make @(Parser "abc" (Bool, Bool, Bool)) $ r
+  parse p "-abc" === Right (True, True, True)
+
+
 test_parse_argument = test "parse an argument" $ do
   let p = make @(Parser "argument" Text) (argument @"argument" @Text [] <: defaults)
   parse p "eric" === Right "eric"
@@ -85,13 +99,13 @@ test_add_help = test "the help text can be specified for each option, and names 
 
 test_parse_repeated_options = test "parse options with repeated values" $ do
   let r =
-          fun (nonEmptyParser @"filesNonEmpty" @File)
-       <: fun (list1Parser @"files1" @File)
-       <: fun (listParser @"files" @File)
-       <: option @"filesNonEmpty" @File []
-       <: option @"files1" @File []
-       <: option @"files" @File []
-       <: defaults
+        fun (nonEmptyParser @"filesNonEmpty" @File)
+          <: fun (list1Parser @"files1" @File)
+          <: fun (listParser @"files" @File)
+          <: option @"filesNonEmpty" @File []
+          <: option @"files1" @File []
+          <: option @"files" @File []
+          <: defaults
 
   let p = make @(Parser "files" [File]) r
   let p1 = make @(Parser "files1" [File]) r
@@ -111,13 +125,13 @@ test_parse_repeated_options = test "parse options with repeated values" $ do
 
 test_parse_repeated_arguments = test "parse arguments with repeated values" $ do
   let r =
-          fun (nonEmptyParser @"filesNonEmpty" @File)
-       <: fun (list1Parser @"files1" @File)
-       <: fun (listParser @"files" @File)
-       <: argument @"filesNonEmpty" @File []
-       <: argument @"files1" @File []
-       <: argument @"files" @File []
-       <: defaults
+        fun (nonEmptyParser @"filesNonEmpty" @File)
+          <: fun (list1Parser @"files1" @File)
+          <: fun (listParser @"files" @File)
+          <: argument @"filesNonEmpty" @File []
+          <: argument @"files1" @File []
+          <: argument @"files" @File []
+          <: defaults
 
   let p = make @(Parser "files" [File]) r
   let p1 = make @(Parser "files1" [File]) r
@@ -225,8 +239,9 @@ file1 = File "file1"
 copyCommand :: Text -> Parser "force" Bool -> Parser "retries" (Maybe Int) -> Parser "source" Text -> Parser "target" Text -> Parser Command Copy
 copyCommand commandName p1 p2 p3 p4 = Parser noHelp $ \ls ->
   case lexedArguments ls of
-    (n : _) | commandName == n ->
-      parseLexed (Copy <$> coerce p1 <*> coerce p2 <*> coerce p3 <*> coerce p4) (popArgumentValue ls)
+    (n : _)
+      | commandName == n ->
+        parseLexed (Copy <$> coerce p1 <*> coerce p2 <*> coerce p3 <*> coerce p4) (popArgumentValue ls)
     _ ->
       Left $ "command not found, expected: " <> commandName
 

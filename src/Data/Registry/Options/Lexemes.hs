@@ -1,9 +1,18 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-{-
-  
-
--}
+-- | This module parses strings coming from the command line
+--    and tries to classify them as:
+--     - option names + their associated values
+--     - flag names
+--     - arguments
+--
+--    It is however not always possible to know if a given list of string is:
+--      - an option name + some values: find --files file1 file2
+--      - a flag name + some arguments: copy --force source target
+--
+--    During lexing we leave this last case as "ambiguous".
+--    This will be disambiguated during parsing where we know if
+--    a given name is an option or a flag.
 module Data.Registry.Options.Lexemes where
 
 import qualified Data.List as L
@@ -14,10 +23,15 @@ import qualified Data.Text as T
 import Protolude as P
 import Prelude (show)
 
+-- | This data type helps pre-parsing option names and values
 data Lexemes = Lexemes
-  { lexedOptions :: MultiMap Text Text,
+  { -- | list of option names and associated values
+    lexedOptions :: MultiMap Text Text,
+    -- | list of flag names
     lexedFlags :: [Text],
+    -- | list of argument values
     lexedArguments :: [Text],
+    -- | possible ambiguous case: option + values or flag + arguments
     lexedAmbiguous :: Maybe (Text, [Text])
   }
   deriving (Eq, Show)
@@ -29,17 +43,75 @@ instance Monoid Lexemes where
   mempty = Lexemes M.empty mempty mempty Nothing
   mappend = (<>)
 
--- create lexemes
+-- | Concatenate 2 lists of lexemes
+union :: Lexemes -> Lexemes -> Lexemes
+union (Lexemes m1 fs1 as1 am1) (Lexemes m2 fs2 as2 am2) =
+  Lexemes
+    (M.fromList $ M.toList m1 <> M.toList m2)
+    (fs1 <> fs2)
+    (as1 <> as2)
+    (am1 <|> am2)
 
+-- * Create lexemes
+
+-- | Lex some input arguments
+--   They are first stripped of additional whitespace
+--   and empty strings are removed (there shouldn't be any though, coming from the command line)
+lexArgs :: [Text] -> Lexemes
+lexArgs = mkLexemes . filter (not . T.null) . fmap T.strip
+
+-- | Lex some input arguments
+mkLexemes :: [Text] -> Lexemes
+mkLexemes [] = mempty
+mkLexemes ("--" : rest) = argsLexeme rest
+mkLexemes [t] =
+  -- this is either a single flag or an argument
+  if isDashed t then makeFlagsLexeme t else argLexeme (dropDashed t)
+mkLexemes (t : rest) =
+  -- if we get an option name
+  if isDashed t
+    then do
+      let key = dropDashed t
+      let (vs, others) = L.break isDashed rest
+      -- if there are no values after the option name, we have a flag
+      if null vs
+        then makeFlagsLexeme t <> mkLexemes others
+        else -- otherwise
+
+        -- if there are additional options/flags, then we collect values for the
+        -- current option and make lexemes for the rest
+
+          if any isDashed others
+            then optionsLexeme key vs <> mkLexemes others
+            else -- this case is ambiguous, possibly the values are repeated values for an option
+            -- or the option is a flag with no values and all the rest are arguments
+              ambiguousLexeme key rest
+    else argLexeme t <> mkLexemes rest
+
+-- | Create lexemes for an option name + an option value
 optionLexeme :: Text -> Text -> Lexemes
 optionLexeme k = optionsLexeme k . pure
 
+-- | Create lexemes for an option name + a list of option values
 optionsLexeme :: Text -> [Text] -> Lexemes
 optionsLexeme k vs = Lexemes (M.fromList ((k,) <$> vs)) mempty mempty Nothing
 
+-- | Create lexemes for a list of potentially short flag names
+--   e.g. makeFlagsLexeme "-opq" === flagsLexeme ["o", "p", "q"]
+makeFlagsLexeme :: Text -> Lexemes
+makeFlagsLexeme t =
+  ( if isSingleDashed t
+      -- split the letters
+      then flagsLexeme . fmap T.singleton . T.unpack
+      else flagLexeme
+  )
+    (dropDashed t)
+
+-- | Create lexemes for a flag name
 flagLexeme :: Text -> Lexemes
 flagLexeme = flagsLexeme . pure
 
+-- | Create lexemes for a list of flag names
 flagsLexeme :: [Text] -> Lexemes
 flagsLexeme fs = Lexemes M.empty fs mempty Nothing
 
@@ -51,41 +123,6 @@ argsLexeme ts = Lexemes M.empty mempty ts Nothing
 
 ambiguousLexeme :: Text -> [Text] -> Lexemes
 ambiguousLexeme t ts = Lexemes M.empty mempty mempty (Just (t, ts))
-
-union :: Lexemes -> Lexemes -> Lexemes
-union (Lexemes m1 fs1 as1 am1) (Lexemes m2 fs2 as2 am2) =
-  Lexemes
-    (M.fromList $ M.toList m1 <> M.toList m2)
-    (fs1 <> fs2)
-    (as1 <> as2)
-    (am1 <|> am2)
-
--- | Lex some input arguments
---   They are first stripped of additional whitespace
---   and empty strings are removed
-lexArgs :: [Text] -> Lexemes
-lexArgs = mkLexemes . filter (not . T.null) . fmap T.strip
-
--- | Lex some input arguments
-mkLexemes :: [Text] -> Lexemes
-mkLexemes [] = mempty
-mkLexemes ("--" : rest) = argsLexeme rest
-mkLexemes [t] =
-  (if isDashed t then flagLexeme else argLexeme) (dropDashed t)
-mkLexemes (t : rest) =
-  if isDashed t
-    then do
-      let key = dropDashed t
-      let (vs, others) = L.break isDashed rest
-      if null vs
-        then flagLexeme key <> mkLexemes others
-        else
-          if any isDashed others
-            then optionsLexeme key vs <> mkLexemes others
-            else -- this case is ambiguous, possibly the values are repeated values for an option
-            -- or the option is a flag with no values and all the rest are arguments
-              ambiguousLexeme key rest
-    else argLexeme t <> mkLexemes rest
 
 getArguments :: Lexemes -> [Text]
 getArguments (Lexemes _ _ as Nothing) = as
@@ -133,6 +170,7 @@ popArgumentValue ls =
             Just (k, _ : as) -> Just (k, as)
         }
 
+-- | Remove a flag
 popFlag :: Text -> Lexemes -> Lexemes
 popFlag f ls = do
   let (before, after) = L.break (== f) $ lexedFlags ls
@@ -151,14 +189,15 @@ popFlag f ls = do
 isDashed :: Text -> Bool
 isDashed = T.isPrefixOf "-"
 
+-- | Return True if some text starts with `-` but not with `--`
+isSingleDashed :: Text -> Bool
+isSingleDashed t = T.isPrefixOf "-" t && not (T.isPrefixOf "-" (T.drop 1 t))
+
+-- | Drop dashes in front of a flag name
 dropDashed :: Text -> Text
 dropDashed = T.dropWhile (== '-')
 
--- | Return True if some text is `--`
-isDoubleDashText :: Text -> Bool
-isDoubleDashText t = t == "--"
-
--- * MULTIMAP
+-- * MultiMap functions
 
 instance (Show k, Show v) => Show (MultiMap k v) where
   show = P.show . M.assocs
@@ -166,6 +205,8 @@ instance (Show k, Show v) => Show (MultiMap k v) where
 instance (Eq k, Eq v) => Eq (MultiMap k v) where
   m1 == m2 = M.assocs m1 == M.assocs m2
 
+-- | Drop the first value associated to a key in the map
+--   If a key has no more values drop the key
 pop :: (Ord k) => k -> MultiMap k v -> MultiMap k v
 pop key m =
   M.fromMap $ Map.fromList $ filter (not . null . snd) $ (\(k, vs) -> if k == key then (k, drop 1 vs) else (k, vs)) <$> M.assocs m
