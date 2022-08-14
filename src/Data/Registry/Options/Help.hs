@@ -69,9 +69,11 @@ displayHelp :: Help -> Text
 displayHelp (Help n s l fs cs) =
   T.unlines $
     displayCommand n s l
+      <> ["", "USAGE", ""]
       <> displayUsage n fs cs
+      <> ["", "OPTIONS", ""]
       <> displayOptionsHelp fs
-      <> (if null cs then [] else ["", "COMMANDS", ""] <> displaySubcommandsHelp cs)
+      <> (if null cs then [] else ["", "COMMANDS", ""] <> displaySubcommandsHelp n cs)
 
 -- | Display the help for a command
 displayCommand :: Maybe Text -> Maybe Text -> Maybe Text -> [Text]
@@ -80,23 +82,36 @@ displayCommand (Just n) s l =
   n <> maybe "" (" - " <>) s : maybe [] (\long -> ["", "  " <> long]) l
 
 -- | Display the help for a list of subcommands
-displaySubcommandsHelp :: [Help] -> [Text]
-displaySubcommandsHelp hs = do
+displaySubcommandsHelp :: Maybe Text -> [Help] -> [Text]
+displaySubcommandsHelp parent hs = do
   let names = shortUsage <$> hs
   let descriptions = fromMaybe "" . helpCommandShortDescription <$> hs
-  fmap ("  " <>) $ displayColumns names descriptions
+  (("  " <>) <$> displayColumns names descriptions)
+    <> [""]
+    <> (displaySubcommandHelp parent =<< hs)
   where
     shortUsage (Help n _ _ fs cs) =
       fromMaybe "" n <> (if null fs then "" else " [OPTIONS]") <> (if null cs then "" else " [COMMANDS]")
+
+displaySubcommandHelp :: Maybe Text -> Help -> [Text]
+displaySubcommandHelp parent (Help n s l fs cs) =
+  displayCommand (commandName parent n) s l
+    <> [""]
+    <> displayUsage (commandName parent n) fs cs
+    <> [""]
+    <> displayOptionsHelp fs
+    <> [""]
+
+  where
+    commandName (Just p) (Just n') = Just (p <> " " <> n')
+    commandName Nothing n' = n'
+    commandName _ Nothing = Nothing
 
 -- | Display the usage of a command
 displayUsage :: Maybe Text -> [OptionDescription] -> [Help] -> [Text]
 displayUsage Nothing _ _ = []
 displayUsage (Just commandName) fs cs =
-  [ "",
-    "USAGE",
-    "",
-    "  "
+  [ "  "
       <> commandName
       <> (if null fs then "" else " " <> T.intercalate " " (fmap (bracketText . displayCliOptionUsage) fs))
       <> (if null cs then "" else " " <> T.intercalate " " (fmap (bracketText . displayCommandName) cs))
@@ -128,7 +143,7 @@ displayOptionsHelp [] = []
 displayOptionsHelp os = do
   let ds = displayOption <$> os
   let hs = fromMaybe "" . _help <$> os
-  ["", "OPTIONS", ""] <> fmap ("  " <>) (displayColumns ds hs)
+  fmap ("  " <>) (displayColumns ds hs)
 
 -- | Display the full description for an option
 displayOption :: OptionDescription -> Text

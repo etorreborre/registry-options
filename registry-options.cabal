@@ -90,6 +90,8 @@ test-suite spec
   main-is: test.hs
   other-modules:
       AutoDiscoveredSpecs
+      Test.Data.Registry.Options.Diffy
+      Test.Data.Registry.Options.DiffySpec
       Test.Data.Registry.Options.Fs
       Test.Data.Registry.Options.GitSpec
       Test.Data.Registry.Options.HelpSpec

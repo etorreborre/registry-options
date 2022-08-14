@@ -26,7 +26,7 @@ test_hlint = test "create a parser for the HLint program" $ do
           "",
           "USAGE",
           "",
-          "  hlint [-r|--report FILE] [-h|--hint FILE] [-c|--color] [-i|--ignore MESSAGE] [-s|--show] [--extension EXT] [-X|--language LANG] [-u|--utf8] [--encoding ENC] [-f|--find FILE] [-t|--test-mode] [-d|--datadir DIR] [--cpp-define NAME[=VALUE]] [--cpp-include DIR] [-h|--help] [-V|--version] [-v|--verbose] [-q|--quiet] [FILES/DIRS]",
+          "  hlint [-r|--report FILE] [-h|--hint FILE] [-c|--color] [-i|--ignore MESSAGE] [-s|--show] [--extension EXT] [-X|--language LANG] [-u|--utf8] [--encoding ENC] [-f|--find FILE] [-t|--test-mode] [-d|--datadir DIR] [--cpp-define NAME[=VALUE]] [--cpp-include DIR] [-?|--help] [-V|--version] [-v|--verbose] [-q|--quiet] [FILES/DIRS]",
           "",
           "OPTIONS",
           "",
@@ -44,7 +44,7 @@ test_hlint = test "create a parser for the HLint program" $ do
           "  -d,--datadir DIR                   Override the data directory",
           "  --cpp-define NAME[=VALUE]          CPP #define",
           "  --cpp-include DIR                  CPP include path",
-          "  -h,--help BOOL                     Display help message",
+          "  -?,--help BOOL                     Display help message",
           "  -V,--version BOOL                  Print version information",
           "  -v,--verbose BOOL                  Loud verbosity",
           "  -q,--quiet BOOL                    Quiet verbosity",
@@ -81,7 +81,7 @@ parsers =
     <: options @"datadir" @FilePath [help "Override the data directory", metavar "DIR"]
     <: options @"cppDefine" @Text [noShort, help "CPP #define", metavar "NAME[=VALUE]"]
     <: options @"cppInclude" @FilePath [noShort, help "CPP include path", metavar "DIR"]
-    <: switch @"help" [help "Display help message"]
+    <: switch @"help" [short '?', help "Display help message"]
     <: switch @"version" [short 'V', help "Print version information"]
     <: switch @"verbose" [help "Loud verbosity"]
     <: switch @"quiet" [help "Quiet verbosity"]

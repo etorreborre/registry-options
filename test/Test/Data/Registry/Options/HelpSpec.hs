@@ -6,7 +6,7 @@ module Test.Data.Registry.Options.HelpSpec where
 
 import Data.Registry
 import Data.Registry.Options
-import qualified Data.Text as T
+import Data.Text qualified as T
 import Protolude
 import Test.Data.Registry.Options.Fs
 import Test.Tasty.Hedgehogx hiding (Command)
@@ -52,7 +52,27 @@ test_help_option = test "a parser can have help and version options" $ do
           "COMMANDS",
           "",
           "  copy [OPTIONS]          copy a file from SOURCE to TARGET",
-          "  move [OPTIONS]          move a file from SOURCE to TARGET"
+          "  move [OPTIONS]          move a file from SOURCE to TARGET",
+          "",
+          "fs copy - copy a file from SOURCE to TARGET",
+          "",
+          "  fs copy [-h|--help] [-f|--force] [-r|--retries INT] [SOURCE] [TARGET]",
+          "",
+          "  -h,--help BOOL            Display this help message",
+          "  -f,--force BOOL           Force the action even if a file already exists with the same name",
+          "  -r,--retries INT          number of retries in case of an error",
+          "  SOURCE                    Source path",
+          "  TARGET                    Target path",
+          "",
+          "fs move - move a file from SOURCE to TARGET",
+          "",
+          "  fs move [-h|--help] [-f|--force] [SOURCE] [TARGET]",
+          "",
+          "  -h,--help BOOL           Display this help message",
+          "  -f,--force BOOL          Force the action even if a file already exists with the same name",
+          "  SOURCE                   Source path",
+          "  TARGET                   Target path",
+          ""
         ]
 
 parsers =
