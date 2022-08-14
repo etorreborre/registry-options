@@ -154,11 +154,11 @@ setNoDefaultValues =
 
 -- | This function is used by the TH module to parse a command name at the beginning
 --   of a list of arguments
-commandNameParser :: Text -> Parser Command Text
+commandNameParser :: Text -> Parser Command ()
 commandNameParser cn = Parser noHelp $ \ls ->
   case lexedArguments ls of
     [] -> Left $ "no arguments found, expected command: " <> cn
     n : _ ->
       if n == cn
-        then Right (cn, popArgumentValue ls)
+        then Right ((), popArgumentValue ls)
         else Left $ "expected command: " <> cn <> ", found: " <> n

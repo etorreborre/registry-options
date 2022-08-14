@@ -24,11 +24,11 @@ deriveLift ''Help
 --
 --   Usage: @$(makeCommand ''MyDataType [shortDescription "copy a file"]) <: otherParsers@
 --   The type of the resulting parser is @Parser "dataType" MyDataType@
-makeCommand :: Name -> [Help] -> ExpQ
+makeCommand :: Name -> [HelpUpdate] -> ExpQ
 makeCommand = makeParserWith defaultParserConfiguration True
 
 -- | Make a command parser with some specific parser options
-makeCommandWith :: ParserConfiguration -> Name -> [Help] -> ExpQ
+makeCommandWith :: ParserConfiguration -> Name -> [HelpUpdate] -> ExpQ
 makeCommandWith parserOptions = makeParserWith parserOptions True
 
 -- | Make a Parser for a given data type, without using the data type as a command name
@@ -55,7 +55,7 @@ defaultParserConfiguration =
     }
 
 -- | Main TemplateHaskell function for creating a command parser
-makeParserWith :: ParserConfiguration -> Bool -> Name -> [Help] -> ExpQ
+makeParserWith :: ParserConfiguration -> Bool -> Name -> [HelpUpdate] -> ExpQ
 makeParserWith parserOptions isCommand typeName help = do
   info <- reify typeName
   case info of
@@ -73,7 +73,7 @@ makeParserWith parserOptions isCommand typeName help = do
         c : cs -> do
           fs <- for (c : cs) fieldsOf
           addToRegistry $
-            [funOf $ makeConstructorsParser parserOptions typeName (c : cs) $ mconcat help]
+            [funOf $ makeConstructorsParser parserOptions typeName (c : cs) $ makeHelp help]
               <> ( if isCommand
                      then []
                      else
@@ -87,12 +87,14 @@ makeParserWith parserOptions isCommand typeName help = do
       qReport True ("cannot create a parser for: " <> show other)
       fail "parser creation failed"
 
-makeSingleConstructor :: ParserConfiguration -> Bool -> Name -> [Help] -> Con -> ExpQ
+-- | Make a parser for a single constructor, either a newtype with or without a field name
+--   or a regular data constructor
+makeSingleConstructor :: ParserConfiguration -> Bool -> Name -> [HelpUpdate] -> Con -> ExpQ
 makeSingleConstructor parserOptions isCommand typeName help c = do
   fs <- fieldsOf c
   cName <- nameOf c
   addToRegistry $
-    [funOf $ makeConstructorParser parserOptions isCommand typeName c $ mconcat help]
+    [funOf $ makeConstructorParser parserOptions isCommand typeName c $ makeHelp help]
       <> ( if isCommand
              then []
              else
@@ -112,9 +114,10 @@ funOf :: ExpQ -> ExpQ
 funOf = appE (varE (mkName "fun"))
 
 -- | Make a Parser for a single Constructor, where each field of the constructor is parsed separately
---   \(os: FieldConfiguration) (p0::Parser fieldName0 Text) (p1::Parser fieldName1 Bool) -> Constructor <$> coerceParser p0 <*> coerceParser p1
+--   \(os: FieldConfiguration) (p0::Parser fieldName0 Text) (p1::Parser fieldName1 Bool) -> Constructor <$> coerce p0 <*> coerce p1
 makeConstructorParser :: ParserConfiguration -> Bool -> Name -> Con -> Help -> ExpQ
 makeConstructorParser parserOptions isCommand typeName c help = do
+  let isOptionalCommand = helpDefaultSubcommand help
   fs <- fieldsOf c
   cName <- nameOf c
   let parserParameters =
@@ -125,13 +128,16 @@ makeConstructorParser parserOptions isCommand typeName c help = do
           <$> zip fs [(0 :: Int) ..]
   let parserType = conT "Parser" `appT` fieldNameTypeT parserOptions cName Nothing `appT` conT typeName
   let commandName = makeCommandName parserOptions (show cName)
-  let parserWithHelp = varE "addParserHelp" `appE` runQ [|help {helpCommandName = Just commandName}|] `appE` applyParser parserOptions isCommand cName [0 .. (length fs - 1)]
+  let parserWithHelp =
+        varE "addParserHelp"
+          `appE` runQ [|help {helpCommandName = Just commandName}|]
+          `appE` applyParser parserOptions isCommand isOptionalCommand cName [0 .. (length fs - 1)]
   lamE parserParameters (sigE parserWithHelp parserType)
 
 -- | Make a Parser for a several Constructors, where each field of each the constructor is parsed separately
 --   and an alternative is taken between all the parsers
 --   \(os: FieldConfiguration) (p0::Parser fieldName1 Text) (p1::Parser fieldName1 Bool) (p2::Parser fieldName2 Bool) ->
---      (Constructor1 <$> coerceParser p0 <*> coerceParser p1) <|> (Constructor2 <$> coerceParser p1 <*> coerceParser p3)
+--      (Constructor1 <$> coerce p0 <*> coerce p1) <|> (Constructor2 <$> coerce p1 <*> coerce p3)
 makeConstructorsParser :: ParserConfiguration -> Name -> [Con] -> Help -> ExpQ
 makeConstructorsParser parserOptions typeName cs help = do
   -- take the fields of all the constructors
@@ -149,7 +155,7 @@ makeConstructorsParser parserOptions typeName cs help = do
             cName <- nameOf c
             cFields <- fieldsOf c
             constructorTypes <- indexConstructorTypes fs cFields
-            applyParser parserOptions False cName constructorTypes
+            applyParser parserOptions False False cName constructorTypes
         )
           <$> cs
 
@@ -167,12 +173,14 @@ makeConstructorsParser parserOptions typeName cs help = do
 
 -- | Apply a constructor to parsers for each of its fields
 --   The resulting parser is a command parser @Parser "Command" DataType@ for a command
---   @ConstructorName <$> coerceParser p0 <*> coerceParser p1 ...@
-applyParser :: ParserConfiguration -> Bool -> Name -> [Int] -> ExpQ
-applyParser parserOptions isCommand cName ns = do
+--   @ConstructorName <$> coerce p0 <*> coerce p1 ...@
+applyParser :: ParserConfiguration -> Bool -> Bool -> Name -> [Int] -> ExpQ
+applyParser parserOptions isCommand isOptionalCommand cName ns = do
   let commandName = makeCommandName parserOptions (show cName)
-  let commandNameParser = varE "*>" `appE` (if isCommand then varE "commandNameParser" `appE` stringE (toS commandName) else varE "unitParser")
-  let cons = commandNameParser `appE` (varE "pure" `appE` conE cName)
+  let commandNameParser = if isCommand then varE "commandNameParser" `appE` stringE (toS commandName) else varE "unitParser"
+  -- a default subcommand might be optional, in that case it is ok if the command name is not parsed
+  let commandParser = varE "*>" `appE` (if isOptionalCommand then varE "<|>" `appE` commandNameParser `appE` varE "unitParser" else commandNameParser)
+  let cons = commandParser `appE` (varE "pure" `appE` conE cName)
   case ns of
     [] -> cons
     (n : rest) ->

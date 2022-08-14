@@ -48,4 +48,18 @@ displayColumns cs1 cs2 = do
 
 -- | Surround some text with brackets
 bracketText :: Text -> Text
-bracketText t = "[" <> t <> "]"
+bracketText = bracketTextWhen True
+
+-- | Surround some text with brackets
+bracketTextWhen :: Bool -> Text -> Text
+bracketTextWhen False t = t
+bracketTextWhen True t = "[" <> t <> "]"
+
+-- | Surround some text with parentheses
+parenthesizeText :: Text -> Text
+parenthesizeText = parenthesizeTextWhen True
+
+-- | Surround some text with parentheses
+parenthesizeTextWhen :: Bool -> Text -> Text
+parenthesizeTextWhen False t = t
+parenthesizeTextWhen True t = "(" <> t <> ")"

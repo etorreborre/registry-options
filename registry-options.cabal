@@ -98,6 +98,8 @@ test-suite spec
       Test.Data.Registry.Options.HLint
       Test.Data.Registry.Options.HLintSpec
       Test.Data.Registry.Options.LexemesSpec
+      Test.Data.Registry.Options.Maker
+      Test.Data.Registry.Options.MakerSpec
       Test.Data.Registry.Options.ParserSpec
       Test.Data.Registry.Options.TextSpec
       Paths_registry_options

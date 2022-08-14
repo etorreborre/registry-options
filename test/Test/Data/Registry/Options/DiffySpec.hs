@@ -55,29 +55,6 @@ test_diffy = test "create a parser for the diffy program" $ do
           ""
         ]
 
-{-
-
-Diffy v1.0
-
-diffy [COMMAND] ... [OPTIONS]
-  Create and compare differences
-
-Common flags:
-  -o --out=FILE     Output file
-  -? --help         Display help message
-  -V --version     Print version information
-
-diffy create [OPTIONS]
-  Create a fingerprint
-
-  -s  --src=DIR  Source directory
-
-diffy diff [OPTIONS] OLDFILE NEWFILE
-  Perform a diff
-
-mode = cmdArgsMode $ modes [create,diff] &= help "Create and compare differences" &= program "diffy" &= summary "Diffy v1.0"
--}
-
 parsers :: Registry _ _
 parsers =
   $( makeCommand ''Diffy $
@@ -91,7 +68,6 @@ parsers =
     <: option @"out" @FilePath [help "Output file", metavar "FILE"]
     <: positional @"old" @FilePath 0 [help "Old file", metavar "FILE"]
     <: positional @"new" @FilePath 1 [help "New file", metavar "FILE"]
-    <: setDefaultValue @"out" @FilePath "report.html"
     <: switch @"help" [short '?', help "Display help message"]
     <: switch @"version" [short 'V', help "Print version information"]
     <: defaults

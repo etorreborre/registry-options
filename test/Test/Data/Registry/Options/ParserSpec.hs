@@ -6,7 +6,7 @@ module Test.Data.Registry.Options.ParserSpec where
 import Data.Coerce
 import Data.Registry
 import Data.Registry.Options hiding (defaults)
-import qualified Data.Registry.Options as Defaults
+import Data.Registry.Options qualified as Defaults
 import Protolude
 import Test.Data.Registry.Options.Fs
 import Test.Tasty.Hedgehogx hiding (Command, defaultValue)
@@ -51,7 +51,7 @@ test_parse_switch = test "parse a switch" $ do
 
 test_parse_switches = test "parse several short switches" $ do
   let f (pa :: Parser "a" Bool) (pb :: Parser "b" Bool) (pc :: Parser "c" Bool) =
-        (,,) <$> coerceParser pa <*> coerceParser pb <*> coerceParser pc :: Parser "abc" (Bool, Bool, Bool)
+        (,,) <$> coerce pa <*> coerce pb <*> coerce pc :: Parser "abc" (Bool, Bool, Bool)
   let r =
         fun f
           <: switch @"a" []
@@ -61,7 +61,6 @@ test_parse_switches = test "parse several short switches" $ do
 
   let p = make @(Parser "abc" (Bool, Bool, Bool)) $ r
   parse p "-abc" === Right (True, True, True)
-
 
 test_parse_argument = test "parse an argument" $ do
   let p = make @(Parser "argument" Text) (argument @"argument" @Text [] <: defaults)
@@ -241,7 +240,7 @@ copyCommand commandName p1 p2 p3 p4 = Parser noHelp $ \ls ->
   case lexedArguments ls of
     (n : _)
       | commandName == n ->
-        parseLexed (Copy <$> coerce p1 <*> coerce p2 <*> coerce p3 <*> coerce p4) (popArgumentValue ls)
+          parseLexed (Copy <$> coerce p1 <*> coerce p2 <*> coerce p3 <*> coerce p4) (popArgumentValue ls)
     _ ->
       Left $ "command not found, expected: " <> commandName
 

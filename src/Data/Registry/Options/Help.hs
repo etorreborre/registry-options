@@ -22,28 +22,45 @@ data Help = Help
     -- | list of fields for a given command. Each field contains some help text
     helpCommandFields :: [OptionDescription],
     -- | list of subcommands
-    helpCommands :: [Help]
+    helpCommands :: [Help],
+    -- | True if the command name is the default subcommand when not present
+    helpDefaultSubcommand :: Bool
   }
   deriving (Eq, Show)
 
+-- | Function updating the help
+type HelpUpdate = Help -> Help
+
+-- | Create a Help from a list of updates
+makeHelp :: [HelpUpdate] -> Help
+makeHelp = foldl (\r u -> u r) mempty
+
 -- | Empty Help description
 noHelp :: Help
-noHelp = Help mempty mempty mempty mempty mempty
+noHelp = Help mempty mempty mempty mempty mempty False
 
 -- | Create a Help value with a short command description
-shortDescription :: Text -> Help
-shortDescription t = noHelp {helpCommandShortDescription = Just t}
+shortDescription :: Text -> HelpUpdate
+shortDescription t h = h {helpCommandShortDescription = Just t}
 
 -- | Create a Help value with a long command description
-longDescription :: Text -> Help
-longDescription t = noHelp {helpCommandLongDescription = Just t}
+longDescription :: Text -> HelpUpdate
+longDescription t h = h {helpCommandLongDescription = Just t}
 
 -- | Create a Help value with a command name, a long and a short description
 commandHelp :: Text -> Text -> Text -> Help
-commandHelp n s l = Help (Just n) (Just s) (Just l) mempty mempty
+commandHelp n s l = Help (Just n) (Just s) (Just l) mempty mempty False
+
+-- | Create a Help value with no command name
+noCommandName :: Help -> Help
+noCommandName h = h {helpCommandName = Nothing}
+
+-- | Set the current subcommand as the default one
+defaultSubcommand :: Help -> Help
+defaultSubcommand h = h {helpDefaultSubcommand = True}
 
 instance Semigroup Help where
-  Help n1 s1 l1 fs1 cs1 <> Help n2 s2 l2 fs2 cs2 = Help (n1 <|> n2) (s1 <|> s2) (l1 <|> l2) (fs1 <> fs2) (cs1 <> cs2)
+  Help n1 s1 l1 fs1 cs1 d1 <> Help n2 s2 l2 fs2 cs2 d2 = Help (n1 <|> n2) (s1 <|> s2) (l1 <|> l2) (fs1 <> fs2) (cs1 <> cs2) (d1 || d2)
 
 instance Monoid Help where
   mempty = noHelp
@@ -55,10 +72,10 @@ instance Monoid Help where
 --    - two commands end-up being the subcommands of the alternative
 --    - a command alternated with some fields becomes a subcommand
 alt :: Help -> Help -> Help
-alt h1@(Help (Just _) _ _ _ _) h2@(Help (Just _) _ _ _ _) = noHelp {helpCommands = [h1, h2]}
-alt (Help Nothing _ _ fs1 cs1) h2@(Help (Just _) _ _ _ _) = noHelp {helpCommandFields = fs1, helpCommands = cs1 <> [h2]}
-alt h1@(Help (Just _) _ _ _ _) (Help Nothing _ _ fs2 cs2) = noHelp {helpCommandFields = fs2, helpCommands = h1 : cs2}
-alt (Help Nothing _ _ fs1 cs1) (Help Nothing _ _ fs2 cs2) = noHelp {helpCommandFields = fs1 <> fs2, helpCommands = cs1 <> cs2}
+alt h1@(Help (Just _) _ _ _ _ _) h2@(Help (Just _) _ _ _ _ _) = noHelp {helpCommands = [h1, h2]}
+alt (Help Nothing _ _ fs1 cs1 _) h2@(Help (Just _) _ _ _ _ _) = noHelp {helpCommandFields = fs1, helpCommands = cs1 <> [h2]}
+alt h1@(Help (Just _) _ _ _ _ _) (Help Nothing _ _ fs2 cs2 _) = noHelp {helpCommandFields = fs2, helpCommands = h1 : cs2}
+alt (Help Nothing _ _ fs1 cs1 _) (Help Nothing _ _ fs2 cs2 _) = noHelp {helpCommandFields = fs1 <> fs2, helpCommands = cs1 <> cs2}
 
 -- | Create a Help value from the description of a simple option
 fromCliOption :: OptionDescription -> Help
@@ -66,7 +83,7 @@ fromCliOption o = noHelp {helpCommandFields = [o]}
 
 -- | Default display for a Help text
 displayHelp :: Help -> Text
-displayHelp (Help n s l fs cs) =
+displayHelp (Help n s l fs cs _) =
   T.unlines $
     displayCommand n s l
       <> ["", "USAGE", ""]
@@ -84,28 +101,33 @@ displayCommand (Just n) s l =
 -- | Display the help for a list of subcommands
 displaySubcommandsHelp :: Maybe Text -> [Help] -> [Text]
 displaySubcommandsHelp parent hs = do
-  let names = shortUsage <$> hs
-  let descriptions = fromMaybe "" . helpCommandShortDescription <$> hs
+  let names = mkShortUsage <$> hs
+  let descriptions = mkShortDescription <$> hs
   (("  " <>) <$> displayColumns names descriptions)
     <> [""]
     <> (displaySubcommandHelp parent =<< hs)
   where
-    shortUsage (Help n _ _ fs cs) =
-      fromMaybe "" n <> (if null fs then "" else " [OPTIONS]") <> (if null cs then "" else " [COMMANDS]")
+    mkShortUsage (Help n _ _ fs cs _) =
+        fromMaybe "" n <> (if null fs then "" else " [OPTIONS]") <> (if null cs then "" else " [COMMANDS]")
 
+    mkShortDescription (Help _ s _ _ _ isDefault) =
+      fromMaybe "" s <> if isDefault then " (default)" else ""
+
+-- | Display the help for a subcommand
 displaySubcommandHelp :: Maybe Text -> Help -> [Text]
-displaySubcommandHelp parent (Help n s l fs cs) =
-  displayCommand (commandName parent n) s l
+displaySubcommandHelp parent (Help n s l fs cs isDefault) =
+  displayCommand subCommandName s l
     <> [""]
-    <> displayUsage (commandName parent n) fs cs
+    <> displayUsage subCommandName fs cs
     <> [""]
     <> displayOptionsHelp fs
     <> [""]
-
   where
-    commandName (Just p) (Just n') = Just (p <> " " <> n')
-    commandName Nothing n' = n'
-    commandName _ Nothing = Nothing
+    subCommandName = parentAndSubcommandName parent $ parenthesizeTextWhen isDefault <$> n
+
+    parentAndSubcommandName (Just p) (Just n') = Just (p <> " " <> n')
+    parentAndSubcommandName Nothing n' = n'
+    parentAndSubcommandName _ Nothing = Nothing
 
 -- | Display the usage of a command
 displayUsage :: Maybe Text -> [OptionDescription] -> [Help] -> [Text]
