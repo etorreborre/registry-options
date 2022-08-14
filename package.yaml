@@ -33,6 +33,7 @@ default-extensions:
   - GADTs
   - DerivingVia
   - DerivingStrategies
+  - ImportQualifiedPost
   - InstanceSigs
   - KindSignatures
   - LambdaCase

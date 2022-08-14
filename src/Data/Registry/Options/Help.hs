@@ -6,7 +6,7 @@ module Data.Registry.Options.Help where
 
 import Data.Registry.Options.OptionDescription
 import Data.Registry.Options.Text
-import qualified Data.Text as T
+import Data.Text qualified as T
 import Protolude
 
 -- | This data type contains optional fields describing
@@ -96,22 +96,30 @@ displayUsage (Just commandName) fs cs =
   [ "",
     "USAGE",
     "",
-    "  " <> commandName
+    "  "
+      <> commandName
       <> (if null fs then "" else " " <> T.intercalate " " (fmap (bracketText . displayCliOptionUsage) fs))
       <> (if null cs then "" else " " <> T.intercalate " " (fmap (bracketText . displayCommandName) cs))
   ]
 
 -- | Display an example of option usage
 displayCliOptionUsage :: OptionDescription -> Text
-displayCliOptionUsage (OptionDescription (Just n) (Just s) m _) = "-" <> T.singleton s <> "|" <> "--" <> n <> maybe "" (" " <>) (displayMetavar m)
-displayCliOptionUsage (OptionDescription _ (Just s) m _) = "-" <> T.singleton s <> maybe "" (" " <>) (displayMetavar m)
-displayCliOptionUsage (OptionDescription (Just n) _ m _) = "--" <> n <> maybe "" (" " <>) (displayMetavar m)
-displayCliOptionUsage (OptionDescription _ _ m _) = fromMaybe "" (displayMetavar m)
+displayCliOptionUsage (OptionDescription (Just n) _ (Just s) m _) = "-" <> T.singleton s <> "|" <> "--" <> n <> maybe "" (" " <>) (displayMetavarUsage m)
+displayCliOptionUsage (OptionDescription _ _ (Just s) m _) = "-" <> T.singleton s <> maybe "" (" " <>) (displayMetavarUsage m)
+displayCliOptionUsage (OptionDescription (Just n) _ _ m _) = "--" <> n <> maybe "" (" " <>) (displayMetavarUsage m)
+displayCliOptionUsage (OptionDescription _ _ _ m _) = fromMaybe "" (displayMetavarUsage m)
 
--- | Display a metavar, except for a switch because it is obvious that it is a boolean
-displayMetavar :: Maybe Text -> Maybe Text
-displayMetavar Nothing = Nothing
-displayMetavar (Just "BOOL") = Nothing
+-- | Display a metavar, except for a switch because it is obvious that it is a boolean or a String
+displayMetavarUsage :: Maybe Text -> Maybe Text
+displayMetavarUsage Nothing = Nothing
+displayMetavarUsage (Just "BOOL") = Nothing
+displayMetavarUsage (Just "[CHAR]") = Nothing
+displayMetavarUsage m = m
+
+-- | Display a metavar in a full help text
+--   [Char] is transformed to String
+displayMetavar :: Text -> Text
+displayMetavar "[CHAR]" = "String"
 displayMetavar m = m
 
 -- | Display the help for a list of options
@@ -122,16 +130,20 @@ displayOptionsHelp os = do
   let hs = fromMaybe "" . _help <$> os
   ["", "OPTIONS", ""] <> fmap ("  " <>) (displayColumns ds hs)
 
--- | Display the full
+-- | Display the full description for an option
 displayOption :: OptionDescription -> Text
-displayOption (OptionDescription (Just n) Nothing (Just m) _) = "--" <> n <> " " <> m
-displayOption (OptionDescription (Just n) (Just s) (Just m) _) = "-" <> T.singleton s <> ",--" <> n <> " " <> m
-displayOption (OptionDescription (Just n) Nothing Nothing _) = "--" <> n
-displayOption (OptionDescription (Just n) (Just s) Nothing _) = "-" <> T.singleton s <> ",--" <> n
-displayOption (OptionDescription Nothing (Just s) Nothing _) = "-" <> T.singleton s
-displayOption (OptionDescription Nothing (Just s) (Just m) _) = "-" <> T.singleton s <> " " <> m
-displayOption (OptionDescription Nothing _ (Just m) _) = m
-displayOption (OptionDescription Nothing _ Nothing _) = ""
+displayOption (OptionDescription n as s m _) =
+  T.intercalate " " $
+    filter
+      (not . T.null)
+      [ T.intercalate
+          ","
+          ( toList (fmap (("-" <>) . T.singleton) s)
+              <> toList (fmap ("--" <>) n)
+              <> (("--" <>) <$> as)
+          ),
+        maybe "" displayMetavar m
+      ]
 
 -- | Display the name of a command if defined
 displayCommandName :: Help -> Text

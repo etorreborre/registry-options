@@ -179,7 +179,7 @@ test_parse_alternatives = test "parse alternative options and arguments" $ do
   parse p "-b" === Right (SimpleAlternative1 True)
   parse p "--text hello" === Right (SimpleAlternative2 "hello")
 
-  takeOptionValue (LongOnly "repeat") (optionLexemes "repeat" "10") === Just ("repeat", Just "10", mempty)
+  takeOptionValue ["repeat"] (optionLexemes "repeat" "10") === Just ("repeat", Just "10", mempty)
   parse p "--int 10" === Right (SimpleAlternative3 10)
 
 test_parse_command = test "parse a command" $ do

@@ -29,12 +29,20 @@ import Protolude
 --     - a metavar
 --     - no active/default values
 --
---   The [OptionDescription] list can be used to override values or provide a help
-option :: forall s a. (KnownSymbol s, Typeable a, Show a) => [OptionDescription] -> Registry _ _
+--   The OptionDescriptionUpdates list can be used to override values or provide a help
+option :: forall s a. (KnownSymbol s, Typeable a, Show a) => OptionDescriptionUpdates -> Registry _ _
 option os = do
   let fieldType = showType @a
   fun (\fieldOptions -> parseField @s @a fieldOptions NonPositional fieldType os)
     <+ setNoDefaultValues @s @a
+
+-- | Create a parser for a list of values
+options :: forall s a. (KnownSymbol s, Typeable a, Show a) => OptionDescriptionUpdates -> Registry _ _
+options os = fun (listParser @s @a) <+ option @s @a os
+
+-- | Create a parser for an optional value
+optionMaybe :: forall s a. (KnownSymbol s, Typeable a, Show a) => OptionDescriptionUpdates -> Registry _ _
+optionMaybe os = fun (maybeParser @s @a) <+ option @s @a os
 
 -- | Create a flag:
 --     - with a short/long name
@@ -42,8 +50,8 @@ option os = do
 --     - an active value
 --     - an optional default value
 --
---   The [OptionDescription] list can be used to override values or provide a help
-flag :: forall s a. (KnownSymbol s, Typeable a, Show a) => a -> Maybe a -> [OptionDescription] -> Registry _ _
+--   The OptionDescriptionUpdates list can be used to override values or provide a help
+flag :: forall s a. (KnownSymbol s, Typeable a, Show a) => a -> Maybe a -> OptionDescriptionUpdates -> Registry _ _
 flag activeValue defaultValue os = do
   let fieldType = showType @a
   fun (\fieldOptions -> parseField @s @a fieldOptions NonPositional fieldType os)
@@ -51,11 +59,11 @@ flag activeValue defaultValue os = do
     <+ setActiveValue @s @a activeValue
 
 -- | Create a flag where the name of the flag can be decoded as a value:
---   The [OptionDescription] list can be used to override values or provide a help
-named :: forall s a. (KnownSymbol s, Typeable a, Show a) => [OptionDescription] -> Registry _ _
+--   The OptionDescriptionUpdates list can be used to override values or provide a help
+named :: forall s a. (KnownSymbol s, Typeable a, Show a) => OptionDescriptionUpdates -> Registry _ _
 named os = do
   let fieldType = showType @a
-  let p = \(decoder :: Decoder a) (defaultValue :: DefaultValue s a) -> Parser @s @a (fromCliOption $ mconcat os) $ \ls -> do
+  let p = \(decoder :: Decoder a) (defaultValue :: DefaultValue s a) -> Parser @s @a (fromCliOption $ makeOptionDescription os) $ \ls -> do
         case partitionEithers $ (\n -> (n,) <$> decode decoder n) <$> getFlagNames ls of
           (_, (f, a) : _) -> Right (a, popFlag f ls)
           _ -> case getDefaultValue defaultValue of
@@ -70,8 +78,8 @@ named os = do
 --     - an active value: True
 --     - an default value: False
 --
---   The [OptionDescription] list can be used to override values or provide a help
-switch :: forall s. (KnownSymbol s) => [OptionDescription] -> Registry _ _
+--   The OptionDescriptionUpdates list can be used to override values or provide a help
+switch :: forall s. (KnownSymbol s) => OptionDescriptionUpdates -> Registry _ _
 switch os = do
   let fieldType = showType @Bool
   fun (\fieldOptions -> parseField @s @Bool fieldOptions NonPositional fieldType os)
@@ -83,27 +91,31 @@ switch os = do
 --     - a metavar
 --     - no active/default values
 --
---   The [OptionDescription] list can be used to override values or provide a help
+--   The OptionDescriptionUpdates list can be used to override values or provide a help
 --
 --   When the argument is read, its value is removed from the list of lexed values
-argument :: forall s a. (KnownSymbol s, Typeable a, Show a) => [OptionDescription] -> Registry _ _
+argument :: forall s a. (KnownSymbol s, Typeable a, Show a) => OptionDescriptionUpdates -> Registry _ _
 argument os = do
   let fieldType = showType @a
   fun (\fieldOptions -> parseField @s @a fieldOptions Positional fieldType os)
     <+ setNoDefaultValues @s @a
+
+-- | Create a parser for a list of arguments
+arguments :: forall s a. (KnownSymbol s, Typeable a, Show a) => OptionDescriptionUpdates -> Registry _ _
+arguments os = fun (listParser @s @a) <+ argument @s @a os
 
 -- | Create a positional argument, to parse the nth value (starting from 0):
 --     - with no short/long names
 --     - a metavar
 --     - no active/default values
 --
---   The [OptionDescription] list can be used to override values or provide a help
+--   The OptionDescriptionUpdates list can be used to override values or provide a help
 --
 --   When the argument is read, its value is left in the list of lexed values
-positional :: forall s a. (KnownSymbol s, Typeable a, Show a) => Int -> [OptionDescription] -> Registry _ _
+positional :: forall s a. (KnownSymbol s, Typeable a, Show a) => Int -> OptionDescriptionUpdates -> Registry _ _
 positional n os = do
   let p fieldOptions = \d -> do
-        let o = mconcat $ metavar (makeMetavar fieldOptions (showType @a)) : os
+        let o = makeOptionDescription $ metavar (makeMetavar fieldOptions (showType @a)) : os
         Parser @s @a (fromCliOption o) $ \ls -> do
           -- take element at position n and make sure to keep all the other
           -- arguments intact because we need their position to parse them
@@ -136,7 +148,7 @@ setNoDefaultValues :: forall s a. (KnownSymbol s, Typeable a) => Registry _ _
 setNoDefaultValues =
   noDefaultValue @s @a
     <+ noActiveValue @s @a
-    <+ val (mempty :: [OptionDescription])
+    <+ val (mempty :: OptionDescription)
 
 -- * Template Haskell
 

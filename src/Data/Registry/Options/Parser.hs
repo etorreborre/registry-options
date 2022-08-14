@@ -9,13 +9,14 @@ module Data.Registry.Options.Parser where
 import Data.Coerce
 import Data.Dynamic
 import Data.Registry (ApplyVariadic, Typed, funTo)
-import Data.Registry.Options.OptionDescription
 import Data.Registry.Options.Decoder
 import Data.Registry.Options.DefaultValues
 import Data.Registry.Options.FieldConfiguration
 import Data.Registry.Options.Help
 import Data.Registry.Options.Lexemes
-import qualified Data.Text as T
+import Data.Registry.Options.OptionDescription
+import Data.Registry.Options.Text
+import Data.Text qualified as T
 import GHC.TypeLits
 import Protolude
 import Type.Reflection
@@ -131,25 +132,25 @@ nonEmptyParser parser@(Parser h p) = Parser h $ \lexemes ->
 --     - an optional default value for the field: the value to use if the field is missing
 --     - an optional active value for the field: the value to use if the field is present
 --     - a Decoder to read the value as text
-parseField :: forall s a. (KnownSymbol s, Typeable a, Show a) => FieldConfiguration -> Positional -> Text -> [OptionDescription] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
+parseField :: forall s a. (KnownSymbol s, Typeable a, Show a) => FieldConfiguration -> Positional -> Text -> OptionDescriptionUpdates -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
 parseField fieldOptions pos fieldType os = do
   let fieldName = if pos == Positional then Nothing else Just $ getSymbol @s
-  let shortName = short . makeShortName fieldOptions <$> toList fieldName
-  let longName = name . toS . makeLongName fieldOptions <$> toList fieldName
-  parseWith (shortName <> longName <> [metavar $ makeMetavar fieldOptions fieldType] <> os)
+  let shortName = maybe identity (\f -> short $ makeShortName fieldOptions f) fieldName
+  let longName = maybe identity (name . toS . makeLongName fieldOptions) fieldName
+  parseWith ([shortName, longName, metavar (makeMetavar fieldOptions fieldType)] <> os)
 
 -- | Create a parser for a given field given:
 --     - its name(s)
 --     - an optional default value for the field: the value to use if the field is missing
 --     - an optional active value for the field: the value to use if the field is present
 --     - a Decoder to read the value as text
-parseWith :: forall s a. (KnownSymbol s, Typeable a, Show a) => [OptionDescription] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
+parseWith :: forall s a. (KnownSymbol s, Typeable a, Show a) => OptionDescriptionUpdates -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
 parseWith os defaultValue activeValue d = do
   Parser (fromCliOption cliOption) $ \ls ->
-    case getName cliOption of
+    case getNames cliOption of
       -- named option, flag or switch
-      Just n ->
-        case takeOptionValue n ls of
+      ns@(_:_) ->
+        case takeOptionValue ns ls of
           Nothing ->
             (,ls) <$> returnDefaultValue
           Just (_, Nothing, ls') ->
@@ -161,12 +162,12 @@ parseWith os defaultValue activeValue d = do
               Just active -> pure (active, popFlag k ls)
               Nothing -> (,ls') <$> decode d v
       -- arguments
-      Nothing ->
+      [] ->
         case takeArgumentValue ls of
           Nothing -> (,ls) <$> returnDefaultValue
           Just (a, ls') -> (,ls') <$> decode d a
   where
-    cliOption = mconcat os
+    cliOption = makeOptionDescription os
 
     returnActiveValue = case getActiveValue activeValue of
       Just def -> pure def
@@ -182,10 +183,9 @@ parseWith os defaultValue activeValue d = do
 --     - Nothing if there is no value
 --     - the first value for that name if there is is one and remove the value associated to the flag
 --   if there aren't any values left associated to a flag, remove it
-takeOptionValue :: Name -> Lexemes -> Maybe (Text, Maybe Text, Lexemes)
-takeOptionValue n lexemes = do
-  let keys = case n of LongShort l s -> [l, s]; LongOnly l -> [l]; ShortOnly s -> [s]
-  headMay $ mapMaybe takeValue keys
+takeOptionValue :: [Text] -> Lexemes -> Maybe (Text, Maybe Text, Lexemes)
+takeOptionValue names lexemes = do
+  headMay $ mapMaybe takeValue (hyphenate <$> names)
   where
     takeValue :: Text -> Maybe (Text, Maybe Text, Lexemes)
     takeValue key =

@@ -49,6 +49,7 @@ library
       GADTs
       DerivingVia
       DerivingStrategies
+      ImportQualifiedPost
       InstanceSigs
       KindSignatures
       LambdaCase
@@ -92,6 +93,8 @@ test-suite spec
       Test.Data.Registry.Options.Fs
       Test.Data.Registry.Options.GitSpec
       Test.Data.Registry.Options.HelpSpec
+      Test.Data.Registry.Options.HLint
+      Test.Data.Registry.Options.HLintSpec
       Test.Data.Registry.Options.LexemesSpec
       Test.Data.Registry.Options.ParserSpec
       Test.Data.Registry.Options.TextSpec
@@ -109,6 +112,7 @@ test-suite spec
       GADTs
       DerivingVia
       DerivingStrategies
+      ImportQualifiedPost
       InstanceSigs
       KindSignatures
       LambdaCase
