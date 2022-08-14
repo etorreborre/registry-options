@@ -1,6 +1,9 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 
+-- | Default and active values for options
+--   They can be defined and / or overridden separately from the
+--   option definition themselves
 module Data.Registry.Options.DefaultValues where
 
 import Data.Dynamic

@@ -179,7 +179,7 @@ test_parse_alternatives = test "parse alternative options and arguments" $ do
   parse p "-b" === Right (SimpleAlternative1 True)
   parse p "--text hello" === Right (SimpleAlternative2 "hello")
 
-  takeOptionValue (LongOnly "repeat") (optionLexeme "repeat" "10") === Just ("repeat", Just "10", mempty)
+  takeOptionValue (LongOnly "repeat") (optionLexemes "repeat" "10") === Just ("repeat", Just "10", mempty)
   parse p "--int 10" === Right (SimpleAlternative3 10)
 
 test_parse_command = test "parse a command" $ do
@@ -207,7 +207,7 @@ test_parse_named = test "parse a flag name" $ do
   parse p "--other" === Left "Flag not found for data type `Language`"
 
   annotate "matched flags must be removed from the input strings"
-  parseLexed p (lexArgs ["--haskell", "--other"]) === Right (Haskell, flagLexeme "other")
+  parseLexed p (lexArgs ["--haskell", "--other"]) === Right (Haskell, flagLexemes "other")
 
 -- * HELPERS
 

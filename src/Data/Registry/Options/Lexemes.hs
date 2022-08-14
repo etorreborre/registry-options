@@ -1,12 +1,14 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | This module parses strings coming from the command line
---    and tries to classify them as:
+--   and tries to classify them as:
+--
 --     - option names + their associated values
 --     - flag names
 --     - arguments
 --
 --    It is however not always possible to know if a given list of string is:
+--
 --      - an option name + some values: find --files file1 file2
 --      - a flag name + some arguments: copy --force source target
 --
@@ -63,10 +65,10 @@ lexArgs = mkLexemes . filter (not . T.null) . fmap T.strip
 -- | Lex some input arguments
 mkLexemes :: [Text] -> Lexemes
 mkLexemes [] = mempty
-mkLexemes ("--" : rest) = argsLexeme rest
+mkLexemes ("--" : rest) = argsLexemes rest
 mkLexemes [t] =
   -- this is either a single flag or an argument
-  if isDashed t then makeFlagsLexeme t else argLexeme (dropDashed t)
+  if isDashed t then makeFlagsLexeme t else argLexemes (dropDashed t)
 mkLexemes (t : rest) =
   -- if we get an option name
   if isDashed t
@@ -82,56 +84,67 @@ mkLexemes (t : rest) =
         -- current option and make lexemes for the rest
 
           if any isDashed others
-            then optionsLexeme key vs <> mkLexemes others
+            then optionsLexemes key vs <> mkLexemes others
             else -- this case is ambiguous, possibly the values are repeated values for an option
             -- or the option is a flag with no values and all the rest are arguments
-              ambiguousLexeme key rest
-    else argLexeme t <> mkLexemes rest
+              ambiguousLexemes key rest
+    else argLexemes t <> mkLexemes rest
 
 -- | Create lexemes for an option name + an option value
-optionLexeme :: Text -> Text -> Lexemes
-optionLexeme k = optionsLexeme k . pure
+optionLexemes :: Text -> Text -> Lexemes
+optionLexemes k = optionsLexemes k . pure
 
 -- | Create lexemes for an option name + a list of option values
-optionsLexeme :: Text -> [Text] -> Lexemes
-optionsLexeme k vs = Lexemes (M.fromList ((k,) <$> vs)) mempty mempty Nothing
+optionsLexemes :: Text -> [Text] -> Lexemes
+optionsLexemes k vs = Lexemes (M.fromList ((k,) <$> vs)) mempty mempty Nothing
 
 -- | Create lexemes for a list of potentially short flag names
---   e.g. makeFlagsLexeme "-opq" === flagsLexeme ["o", "p", "q"]
+--   e.g. makeFlagsLexeme "-opq" === flagsLexemes ["o", "p", "q"]
 makeFlagsLexeme :: Text -> Lexemes
 makeFlagsLexeme t =
   ( if isSingleDashed t
       -- split the letters
-      then flagsLexeme . fmap T.singleton . T.unpack
-      else flagLexeme
+      then flagsLexemes . fmap T.singleton . T.unpack
+      else flagLexemes
   )
     (dropDashed t)
 
 -- | Create lexemes for a flag name
-flagLexeme :: Text -> Lexemes
-flagLexeme = flagsLexeme . pure
+flagLexemes :: Text -> Lexemes
+flagLexemes = flagsLexemes . pure
 
 -- | Create lexemes for a list of flag names
-flagsLexeme :: [Text] -> Lexemes
-flagsLexeme fs = Lexemes M.empty fs mempty Nothing
+flagsLexemes :: [Text] -> Lexemes
+flagsLexemes fs = Lexemes M.empty fs mempty Nothing
 
-argLexeme :: Text -> Lexemes
-argLexeme = argsLexeme . pure
+-- | Create lexemes for an argument value
+argLexemes :: Text -> Lexemes
+argLexemes = argsLexemes . pure
 
-argsLexeme :: [Text] -> Lexemes
-argsLexeme ts = Lexemes M.empty mempty ts Nothing
+-- | Create lexemes for several arguments
+argsLexemes :: [Text] -> Lexemes
+argsLexemes ts = Lexemes M.empty mempty ts Nothing
 
-ambiguousLexeme :: Text -> [Text] -> Lexemes
-ambiguousLexeme t ts = Lexemes M.empty mempty mempty (Just (t, ts))
+-- | Create lexemes an ambiguous flag an its values
+--   Later parsing will indicate if the name is an option names and the values the option values
+--   or if this is a flag + arguments
+ambiguousLexemes :: Text -> [Text] -> Lexemes
+ambiguousLexemes t ts = Lexemes M.empty mempty mempty (Just (t, ts))
 
+-- | Return the possible list of argument values to parse from
+--   Note that there can be ambiguous flags
 getArguments :: Lexemes -> [Text]
 getArguments (Lexemes _ _ as Nothing) = as
 getArguments (Lexemes _ _ as1 (Just (_, as2))) = as1 <> as2
 
--- | Return flag names from lexed values
+-- | Return option/flag names from lexed values
 getFlagNames :: Lexemes -> [Text]
 getFlagNames (Lexemes m fs _ am) = M.keys m <> fs <> (fst <$> toList am)
 
+-- | Return a value for a given name
+--   This can be a value associated to a given option
+--   or just a flag name acting as a value to decode
+--   (the value can also come from an ambiguous option value)
 getValue :: Text -> Lexemes -> Maybe (Maybe Text)
 getValue key (Lexemes options flags _ ambiguous) =
   case headMay (M.lookup key options) of
@@ -147,6 +160,11 @@ getValue key (Lexemes options flags _ ambiguous) =
         then headMay vs
         else Nothing
 
+-- | Remove the value associated to an option name
+--   The value might be:
+--     - associated to an option name
+--     - the name of a flag
+--     - associated to an ambiguous flag name
 popOptionValue :: Text -> Lexemes -> Lexemes
 popOptionValue key ls =
   ls
@@ -158,6 +176,9 @@ popOptionValue key ls =
         other -> other
     }
 
+-- | Remove an argument value
+--   first from the list of arguments if there are some`
+--   otherwise remove a value in the list of values associated to an ambiguous flag
 popArgumentValue :: Lexemes -> Lexemes
 popArgumentValue ls =
   case lexedArguments ls of
@@ -171,6 +192,8 @@ popArgumentValue ls =
         }
 
 -- | Remove a flag
+--   If the flag is actually an ambiguous flag with some associated values then
+--   this means that those values were arguments and need to be treated as such
 popFlag :: Text -> Lexemes -> Lexemes
 popFlag f ls = do
   let (before, after) = L.break (== f) $ lexedFlags ls

@@ -1,8 +1,13 @@
+-- | This module contains the definition of a 'Decoder'
+--   and some default decoders
+--
+--   A 'Decoder' reads a string and return a Haskell value or a failure
 module Data.Registry.Options.Decoder where
 
 import Data.Registry (ApplyVariadic, Typed, fun, funTo)
 import qualified Data.Text as T
 import Protolude
+import Prelude (String)
 
 -- | Decode a value of type a from Text
 newtype Decoder a = Decoder {decode :: Text -> Either Text a}
@@ -12,11 +17,11 @@ newtype Decoder a = Decoder {decode :: Text -> Either Text a}
 decoderOf :: forall a b. (ApplyVariadic Decoder a b, Typeable a, Typeable b) => a -> Typed b
 decoderOf = funTo @Decoder
 
--- | Add a Decoder to a Registry
+-- | Add a Decoder to a registry
 addDecoder :: forall a. (Typeable a) => (Text -> Either Text a) -> Typed (Decoder a)
 addDecoder = fun . Decoder
 
--- * STANDARD DECODERS
+-- * Common decoders
 
 -- | Decoder for an Int
 intDecoder :: Text -> Either Text Int
@@ -29,6 +34,10 @@ boolDecoder t = maybe (Left $ "cannot read as a Bool: " <> t) Right (readMaybe t
 -- | Decoder for some Text
 textDecoder :: Text -> Either Text Text
 textDecoder t = if T.null t then Left "empty text" else Right t
+
+-- | Decoder for some String
+stringDecoder :: Text -> Either Text String
+stringDecoder t = if T.null t then Left "empty string" else Right (toS t)
 
 -- | Create a Decoder for [a]
 manyOf :: forall a. Typeable a => Typed (Decoder a -> Decoder [a])

@@ -1,6 +1,14 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 
+-- | Option parsers for cli options
+--
+--    - 'option' specifies a named value on the command line
+--    - 'flag' specifies a value derived from the presence of the flag
+--    - 'named' specifies a value derived from the name of a flag
+--    - 'switch' specifies a flag with a boolean value
+--    - 'argument' specifies a value not delimited by an option name, the first string value is parsed
+--    - 'positional' specifies an argument which is expected to be at a specific place in the list of arguments
 module Data.Registry.Options.CliParsers where
 
 import Data.Dynamic
@@ -42,6 +50,20 @@ flag activeValue defaultValue os = do
     <+ maybe noDefaultValue (setDefaultValue @s @a) defaultValue
     <+ setActiveValue @s @a activeValue
 
+-- | Create a flag where the name of the flag can be decoded as a value:
+--   The [CliOption] list can be used to override values or provide a help
+named :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> Registry _ _
+named os = do
+  let fieldType = showType @a
+  let p = \(decoder :: Decoder a) (defaultValue :: DefaultValue s a) -> Parser @s @a (fromCliOption $ mconcat os) $ \ls -> do
+        case partitionEithers $ (\n -> (n,) <$> decode decoder n) <$> getFlagNames ls of
+          (_, (f, a) : _) -> Right (a, popFlag f ls)
+          _ -> case getDefaultValue defaultValue of
+            Just def -> pure (def, ls)
+            _ -> Left $ "Flag not found for data type `" <> fieldType <> "`"
+  fun p
+    <+ setNoDefaultValues @s @a
+
 -- | Create a switch:
 --     - with a short/long name
 --     - a metavar
@@ -69,29 +91,6 @@ argument os = do
   let fieldType = showType @a
   fun (\fieldOptions -> parseField @s @a fieldOptions Positional fieldType os)
     <+ setNoDefaultValues @s @a
-
--- | Create a flag where the name of the flag can be decoded as a value:
---   The [CliOption] list can be used to override values or provide a help
-named :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> Registry _ _
-named os = do
-  let fieldType = showType @a
-  let p = \(decoder :: Decoder a) (defaultValue :: DefaultValue s a) -> Parser @s @a (fromCliOption $ mconcat os) $ \ls -> do
-        case partitionEithers $ (\n -> (n,) <$> decode decoder n) <$> getFlagNames ls of
-          (_, (f, a) : _) -> Right (a, popFlag f ls)
-          _ -> case getDefaultValue defaultValue of
-            Just def -> pure (def, ls)
-            _ -> Left $ "Flag not found for data type `" <> fieldType <> "`"
-  fun p
-    <+ setNoDefaultValues @s @a
-
-parseCommandName :: Text -> Parser Command Text
-parseCommandName cn = Parser noHelp $ \ls ->
-  case lexedArguments ls of
-    [] -> Left $ "no arguments found, expected command: " <> cn
-    n : _ ->
-      if n == cn
-        then Right (cn, popArgumentValue ls)
-        else Left $ "expected command: " <> cn <> ", found: " <> n
 
 -- | Create a positional argument, to parse the nth value (starting from 0):
 --     - with no short/long names
@@ -138,3 +137,16 @@ setNoDefaultValues =
   noDefaultValue @s @a
     <+ noActiveValue @s @a
     <+ val (mempty :: [CliOption])
+
+-- * Template Haskell
+
+-- | This function is used by the TH module to parse a command name at the beginning
+--   of a list of arguments
+commandNameParser :: Text -> Parser Command Text
+commandNameParser cn = Parser noHelp $ \ls ->
+  case lexedArguments ls of
+    [] -> Left $ "no arguments found, expected command: " <> cn
+    n : _ ->
+      if n == cn
+        then Right (cn, popArgumentValue ls)
+        else Left $ "expected command: " <> cn <> ", found: " <> n

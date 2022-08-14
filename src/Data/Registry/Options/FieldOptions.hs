@@ -1,3 +1,7 @@
+-- | Options for the configuration of options from
+--   field names given as singleton string types
+--   For example in the `Parser "myField" MyType
+--   @myField@ is used to create an option name like @--my-field@ (by default)
 module Data.Registry.Options.FieldOptions where
 
 import Data.Registry.Options.Text
@@ -7,14 +11,13 @@ import qualified Prelude
 
 -- | These options are used at runtime to take a field name and build its short/long name + metavar
 data FieldOptions = FieldOptions
-  { makeShortName :: Text -> Char,
-    -- ^ make a short name from a field name. For example "force" -> 'f'
+  { -- | make a short name from a field name. For example @"force" -> \'f\'@
+    makeShortName :: Text -> Char,
+    -- | make a long name from a field name. For example @"forceCopy" -> 'force-copy'@
     makeLongName :: Text -> Text,
-    -- ^ make a long name from a field name. For example "forceCopy" -> 'force-copy'
+    -- | describe the type of a field from its name. For example @"sourceFile" -> "File"@
     makeMetavar :: Text -> Text
-    -- ^ describe the type of a field from its name. For example "sourceFile" -> "File"
   }
-
 
 -- | The default options are taking a Package1.Package2.camelCase name and
 --    - creating a short name = "c"

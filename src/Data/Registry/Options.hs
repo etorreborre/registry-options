@@ -1,3 +1,4 @@
+-- | Full API for the Options library
 module Data.Registry.Options
   ( module Options,
   )

@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 
+-- | Main module for creating option parsers
 module Data.Registry.Options.Parser where
 
 import Data.Coerce
@@ -47,14 +48,20 @@ instance Alternative (Parser s) where
       Right a -> Right a
       _ -> p2 lexemes
 
+-- | This data type indicates if an argument must be parsed at a specific position
+--   This changes the parsing since positional arguments do not consume lexemes
 data Positional = Positional | NonPositional deriving (Eq, Show)
 
+-- | This parser does not consume anything but always succeeds.
+--   It is a unit for the @*>@ operator
 unitParser :: Parser s ()
 unitParser = Parser noHelp $ \ls -> Right ((), ls)
 
+-- | Add some help description to a Parser
 addParserHelp :: Help -> Parser s a -> Parser s a
 addParserHelp h p = setParserHelp (parserHelp p <> h) p
 
+-- | Set some help description on a Parser
 setParserHelp :: Help -> Parser s a -> Parser s a
 setParserHelp h p = p {parserHelp = h}
 
@@ -80,12 +87,18 @@ parse p = parseArgs p . fmap T.strip . T.splitOn " "
 parserOf :: forall a b. (ApplyVariadic (Parser Command) a b, Typeable a, Typeable b) => a -> Typed b
 parserOf = funTo @(Parser Command)
 
+-- | Make a Parser for a @Maybe@ type.
+--   If the original parser does not succeeds this parser
+--   returns @Nothing@ and does not consume anything
 maybeParser :: Parser s a -> Parser s (Maybe a)
 maybeParser (Parser h p) = Parser h $ \lexemes ->
   case p lexemes of
     Right (a, ls) -> Right (Just a, ls)
     Left _ -> Right (Nothing, lexemes)
 
+-- | Make a Parser for a @List@ type.
+--   This works by repeatedly applying the original parser to
+--   inputs (and appending results) until the parser fails in which case @[]@ is returned
 listParser :: Parser s a -> Parser s [a]
 listParser parser@(Parser h p) = Parser h $ \lexemes ->
   case p lexemes of
@@ -95,15 +108,12 @@ listParser parser@(Parser h p) = Parser h $ \lexemes ->
         Left e -> Left e
     Left _ -> Right ([], lexemes)
 
+-- | Make a Parser for a @List@ type where at least one value is expected to be parsed
 list1Parser :: Parser s a -> Parser s [a]
-list1Parser parser@(Parser h p) = Parser h $ \lexemes ->
-  case p lexemes of
-    Right (a, ls) ->
-      case parseLexed (listParser parser) ls of
-        Right (as, ls') -> Right (a : as, ls')
-        Left e -> Left e
-    Left e -> Left e
+list1Parser = fmap toList . nonEmptyParser
 
+-- | Make a Parser for a @NonEmpty@ type
+--   (this means that least one value is expected to be parsed)
 nonEmptyParser :: Parser s a -> Parser s (NonEmpty a)
 nonEmptyParser parser@(Parser h p) = Parser h $ \lexemes ->
   case p lexemes of
