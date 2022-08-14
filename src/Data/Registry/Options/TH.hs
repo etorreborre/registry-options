@@ -5,7 +5,7 @@ module Data.Registry.Options.TH where
 
 import Control.Monad.Fail
 import Data.List (elemIndex, foldr1)
-import Data.Registry.Options.CliOption (CliOption)
+import Data.Registry.Options.OptionDescription (OptionDescription)
 import Data.Registry.Options.Help
 import Data.Registry.Options.Text
 import Data.String
@@ -15,7 +15,7 @@ import Language.Haskell.TH.Lift
 import Language.Haskell.TH.Syntax
 import Protolude hiding (Type)
 
-deriveLift ''CliOption
+deriveLift ''OptionDescription
 deriveLift ''Help
 
 -- | Make a command parser for a given data type
@@ -25,36 +25,36 @@ deriveLift ''Help
 --   Usage: @$(makeCommand ''MyDataType [shortDescription "copy a file"]) <: otherParsers@
 --   The type of the resulting parser is @Parser "dataType" MyDataType@
 makeCommand :: Name -> [Help] -> ExpQ
-makeCommand = makeParserWith defaultParserOptions True
+makeCommand = makeParserWith defaultParserConfiguration True
 
 -- | Make a command parser with some specific parser options
-makeCommandWith :: ParserOptions -> Name -> [Help] -> ExpQ
+makeCommandWith :: ParserConfiguration -> Name -> [Help] -> ExpQ
 makeCommandWith parserOptions = makeParserWith parserOptions True
 
 -- | Make a Parser for a given data type, without using the data type as a command name
 makeParser :: Name -> ExpQ
-makeParser n = makeParserWith defaultParserOptions False n []
+makeParser n = makeParserWith defaultParserConfiguration False n []
 
 -- | Options for creating a command parser
-data ParserOptions = ParserOptions
+data ParserConfiguration = ParserConfiguration
   { makeCommandName :: Text -> Text,
     -- ^ make the name a the command from a qualified data type name
     makeFieldType :: Text -> Maybe Text -> Text
     -- ^ make the type of a field from the command data type, and the qualified field type (if it exists)
   }
 
--- | Default parser options
+-- | Default parser configuration
 --   if the data type is @mypackage.DataType { dataTypeFieldName :: FieldType }@ then
 --     - @makeCommandName -> "type"@
 --     - @makeFieldType -> "fieldName"@
-defaultParserOptions :: ParserOptions
-defaultParserOptions = ParserOptions {
+defaultParserConfiguration :: ParserConfiguration
+defaultParserConfiguration = ParserConfiguration {
   makeCommandName = T.toLower . dropPrefix . dropQualifier,
   makeFieldType = \typeName -> maybe "Command" (T.toLower . T.drop (T.length typeName) . dropQualifier)
 }
 
 -- | Main TemplateHaskell function for creating a command parser
-makeParserWith :: ParserOptions -> Bool -> Name -> [Help] -> ExpQ
+makeParserWith :: ParserConfiguration -> Bool -> Name -> [Help] -> ExpQ
 makeParserWith parserOptions isCommand typeName help = do
   info <- reify typeName
   case info of
@@ -112,8 +112,8 @@ funOf :: ExpQ -> ExpQ
 funOf = appE (varE (mkName "fun"))
 
 -- | Make a Parser for a single Constructor, where each field of the constructor is parsed separately
---   \(os: FieldOptions) (p0::Parser fieldName0 Text) (p1::Parser fieldName1 Bool) -> Constructor <$> coerceParser p0 <*> coerceParser p1
-makeConstructorParser :: ParserOptions -> Bool -> Name -> Con -> Help -> ExpQ
+--   \(os: FieldConfiguration) (p0::Parser fieldName0 Text) (p1::Parser fieldName1 Bool) -> Constructor <$> coerceParser p0 <*> coerceParser p1
+makeConstructorParser :: ParserConfiguration -> Bool -> Name -> Con -> Help -> ExpQ
 makeConstructorParser parserOptions isCommand typeName c help = do
   fs <- fieldsOf c
   cName <- nameOf c
@@ -130,9 +130,9 @@ makeConstructorParser parserOptions isCommand typeName c help = do
 
 -- | Make a Parser for a several Constructors, where each field of each the constructor is parsed separately
 --   and an alternative is taken between all the parsers
---   \(os: FieldOptions) (p0::Parser fieldName1 Text) (p1::Parser fieldName1 Bool) (p2::Parser fieldName2 Bool) ->
+--   \(os: FieldConfiguration) (p0::Parser fieldName1 Text) (p1::Parser fieldName1 Bool) (p2::Parser fieldName2 Bool) ->
 --      (Constructor1 <$> coerceParser p0 <*> coerceParser p1) <|> (Constructor2 <$> coerceParser p1 <*> coerceParser p3)
-makeConstructorsParser :: ParserOptions -> Name -> [Con] -> Help -> ExpQ
+makeConstructorsParser :: ParserConfiguration -> Name -> [Con] -> Help -> ExpQ
 makeConstructorsParser parserOptions typeName cs help = do
   -- take the fields of all the constructors
   -- and make a parameter list with the corresponding parsers
@@ -167,7 +167,7 @@ makeConstructorsParser parserOptions typeName cs help = do
 -- | Apply a constructor to parsers for each of its fields
 --   The resulting parser is a command parser @Parser "Command" DataType@ for a command
 --   @ConstructorName <$> coerceParser p0 <*> coerceParser p1 ...@
-applyParser :: ParserOptions -> Bool -> Name -> [Int] -> ExpQ
+applyParser :: ParserConfiguration -> Bool -> Name -> [Int] -> ExpQ
 applyParser parserOptions isCommand cName ns = do
   let commandName = makeCommandName parserOptions (show cName)
   let commandNameParser = varE "*>" `appE` (if isCommand then varE "commandNameParser" `appE` stringE (toS commandName) else varE "unitParser")
@@ -213,13 +213,13 @@ indexConstructorTypes allFields constructorFields =
       Nothing -> fail $ "the field " <> show f <> " cannot be found in the list of all the fields " <> show allFields
 
 -- | Make a Parser for a given field
-makeFieldParser :: ParserOptions -> Name -> Maybe Name -> Type -> ExpQ
+makeFieldParser :: ParserConfiguration -> Name -> Maybe Name -> Type -> ExpQ
 makeFieldParser parserOptions constructorName mFieldName fieldType = do
   let fieldNameType = fieldNameTypeT parserOptions constructorName mFieldName
   let fieldName = maybe (conE "Positional") (const $ conE "NonPositional") mFieldName
   varE "fun"
     `appE` lamE
-      [sigP (varP "ps") (conT "FieldOptions")]
+      [sigP (varP "ps") (conT "FieldConfiguration")]
       ( (varE "parseField" `appTypeE` fieldNameType `appTypeE` pure fieldType)
           `appE` varE "ps"
           `appE` fieldName
@@ -227,12 +227,12 @@ makeFieldParser parserOptions constructorName mFieldName fieldType = do
       )
 
 -- | Add no default values for a given field name to the registry
-makeNoDefaultValues :: ParserOptions -> Name -> Maybe Name -> Type -> ExpQ
+makeNoDefaultValues :: ParserConfiguration -> Name -> Maybe Name -> Type -> ExpQ
 makeNoDefaultValues parserOptions constructorName mFieldName fieldType =
   varE "setNoDefaultValues" `appTypeE` fieldNameTypeT parserOptions constructorName mFieldName `appTypeE` pure fieldType
 
 -- | Return the singleton string type for a given field parser
-fieldNameTypeT :: ParserOptions -> Name -> Maybe Name -> Q Type
+fieldNameTypeT :: ParserConfiguration -> Name -> Maybe Name -> Q Type
 fieldNameTypeT parserOptions constructorName mFieldName =
   litT . strTyLit . toS $ makeFieldType parserOptions (dropQualifier . show $ constructorName) (show <$> mFieldName)
 

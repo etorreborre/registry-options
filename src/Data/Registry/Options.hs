@@ -4,12 +4,12 @@ module Data.Registry.Options
   )
 where
 
-import Data.Registry.Options.CliOption as Options
-import Data.Registry.Options.CliParsers as Options
+import Data.Registry.Options.OptionDescription as Options
+import Data.Registry.Options.Parsers as Options
 import Data.Registry.Options.Decoder as Options
 import Data.Registry.Options.DefaultValues as Options
 import Data.Registry.Options.Defaults as Options
-import Data.Registry.Options.FieldOptions as Options
+import Data.Registry.Options.FieldConfiguration as Options
 import Data.Registry.Options.Help as Options
 import Data.Registry.Options.Lexemes as Options
 import Data.Registry.Options.Parser as Options

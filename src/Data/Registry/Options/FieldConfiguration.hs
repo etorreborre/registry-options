@@ -1,8 +1,8 @@
--- | Options for the configuration of options from
+-- | Configuration of fields from
 --   field names given as singleton string types
 --   For example in the `Parser "myField" MyType
 --   @myField@ is used to create an option name like @--my-field@ (by default)
-module Data.Registry.Options.FieldOptions where
+module Data.Registry.Options.FieldConfiguration where
 
 import Data.Registry.Options.Text
 import qualified Data.Text as T
@@ -10,7 +10,7 @@ import Protolude
 import qualified Prelude
 
 -- | These options are used at runtime to take a field name and build its short/long name + metavar
-data FieldOptions = FieldOptions
+data FieldConfiguration = FieldConfiguration
   { -- | make a short name from a field name. For example @"force" -> \'f\'@
     makeShortName :: Text -> Char,
     -- | make a long name from a field name. For example @"forceCopy" -> 'force-copy'@
@@ -23,6 +23,6 @@ data FieldOptions = FieldOptions
 --    - creating a short name = "c"
 --    - creating a long name = "camel-case"
 --    - creating a metavar = "CAMELCASE"
-defaultFieldOptions :: FieldOptions
-defaultFieldOptions =
-  FieldOptions (Prelude.head . toS . dropQualifier) (hyphenate . dropQualifier) (T.toUpper . dropQualifier)
+defaultFieldConfiguration :: FieldConfiguration
+defaultFieldConfiguration =
+  FieldConfiguration (Prelude.head . toS . dropQualifier) (hyphenate . dropQualifier) (T.toUpper . dropQualifier)

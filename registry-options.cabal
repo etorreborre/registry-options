@@ -23,15 +23,15 @@ source-repository head
 library
   exposed-modules:
       Data.Registry.Options
-      Data.Registry.Options.CliOption
-      Data.Registry.Options.CliParsers
       Data.Registry.Options.Decoder
       Data.Registry.Options.Defaults
       Data.Registry.Options.DefaultValues
-      Data.Registry.Options.FieldOptions
+      Data.Registry.Options.FieldConfiguration
       Data.Registry.Options.Help
       Data.Registry.Options.Lexemes
+      Data.Registry.Options.OptionDescription
       Data.Registry.Options.Parser
+      Data.Registry.Options.Parsers
       Data.Registry.Options.Text
       Data.Registry.Options.TH
   other-modules:

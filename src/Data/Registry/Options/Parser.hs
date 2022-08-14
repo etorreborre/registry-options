@@ -9,10 +9,10 @@ module Data.Registry.Options.Parser where
 import Data.Coerce
 import Data.Dynamic
 import Data.Registry (ApplyVariadic, Typed, funTo)
-import Data.Registry.Options.CliOption
+import Data.Registry.Options.OptionDescription
 import Data.Registry.Options.Decoder
 import Data.Registry.Options.DefaultValues
-import Data.Registry.Options.FieldOptions
+import Data.Registry.Options.FieldConfiguration
 import Data.Registry.Options.Help
 import Data.Registry.Options.Lexemes
 import qualified Data.Text as T
@@ -127,11 +127,11 @@ nonEmptyParser parser@(Parser h p) = Parser h $ \lexemes ->
 --     - fieldOptions to derive long/short/metavar names from a field name
 --     - a field name. If it is missing, then we can only parse arguments
 --     - a field type. We use the type to make a METAVAR
---     - additional CliOption to either override the previous values, or to add the field help
+--     - additional OptionDescription to either override the previous values, or to add the field help
 --     - an optional default value for the field: the value to use if the field is missing
 --     - an optional active value for the field: the value to use if the field is present
 --     - a Decoder to read the value as text
-parseField :: forall s a. (KnownSymbol s, Typeable a, Show a) => FieldOptions -> Positional -> Text -> [CliOption] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
+parseField :: forall s a. (KnownSymbol s, Typeable a, Show a) => FieldConfiguration -> Positional -> Text -> [OptionDescription] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
 parseField fieldOptions pos fieldType os = do
   let fieldName = if pos == Positional then Nothing else Just $ getSymbol @s
   let shortName = short . makeShortName fieldOptions <$> toList fieldName
@@ -143,7 +143,7 @@ parseField fieldOptions pos fieldType os = do
 --     - an optional default value for the field: the value to use if the field is missing
 --     - an optional active value for the field: the value to use if the field is present
 --     - a Decoder to read the value as text
-parseWith :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
+parseWith :: forall s a. (KnownSymbol s, Typeable a, Show a) => [OptionDescription] -> DefaultValue s a -> ActiveValue s a -> Decoder a -> Parser s a
 parseWith os defaultValue activeValue d = do
   Parser (fromCliOption cliOption) $ \ls ->
     case getName cliOption of

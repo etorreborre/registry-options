@@ -7,11 +7,11 @@ module Data.Registry.Options.Defaults where
 
 import Data.Registry
 import Data.Registry.Options.Decoder
-import Data.Registry.Options.FieldOptions
+import Data.Registry.Options.FieldConfiguration
 
 -- | Default registry
 defaults =
-  fun defaultFieldOptions
+  fun defaultFieldConfiguration
     <: decoders
 
 -- | Default decoders

@@ -1,7 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 
--- | Option parsers for cli options
+-- | Common parsers for options
 --
 --    - 'option' specifies a named value on the command line
 --    - 'flag' specifies a value derived from the presence of the flag
@@ -9,15 +9,15 @@
 --    - 'switch' specifies a flag with a boolean value
 --    - 'argument' specifies a value not delimited by an option name, the first string value is parsed
 --    - 'positional' specifies an argument which is expected to be at a specific place in the list of arguments
-module Data.Registry.Options.CliParsers where
+module Data.Registry.Options.Parsers where
 
 import Data.Dynamic
 import Data.Either
 import Data.Registry
-import Data.Registry.Options.CliOption
+import Data.Registry.Options.OptionDescription
 import Data.Registry.Options.Decoder
 import Data.Registry.Options.DefaultValues
-import Data.Registry.Options.FieldOptions
+import Data.Registry.Options.FieldConfiguration
 import Data.Registry.Options.Help
 import Data.Registry.Options.Lexemes
 import Data.Registry.Options.Parser
@@ -29,8 +29,8 @@ import Protolude
 --     - a metavar
 --     - no active/default values
 --
---   The [CliOption] list can be used to override values or provide a help
-option :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> Registry _ _
+--   The [OptionDescription] list can be used to override values or provide a help
+option :: forall s a. (KnownSymbol s, Typeable a, Show a) => [OptionDescription] -> Registry _ _
 option os = do
   let fieldType = showType @a
   fun (\fieldOptions -> parseField @s @a fieldOptions NonPositional fieldType os)
@@ -42,8 +42,8 @@ option os = do
 --     - an active value
 --     - an optional default value
 --
---   The [CliOption] list can be used to override values or provide a help
-flag :: forall s a. (KnownSymbol s, Typeable a, Show a) => a -> Maybe a -> [CliOption] -> Registry _ _
+--   The [OptionDescription] list can be used to override values or provide a help
+flag :: forall s a. (KnownSymbol s, Typeable a, Show a) => a -> Maybe a -> [OptionDescription] -> Registry _ _
 flag activeValue defaultValue os = do
   let fieldType = showType @a
   fun (\fieldOptions -> parseField @s @a fieldOptions NonPositional fieldType os)
@@ -51,8 +51,8 @@ flag activeValue defaultValue os = do
     <+ setActiveValue @s @a activeValue
 
 -- | Create a flag where the name of the flag can be decoded as a value:
---   The [CliOption] list can be used to override values or provide a help
-named :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> Registry _ _
+--   The [OptionDescription] list can be used to override values or provide a help
+named :: forall s a. (KnownSymbol s, Typeable a, Show a) => [OptionDescription] -> Registry _ _
 named os = do
   let fieldType = showType @a
   let p = \(decoder :: Decoder a) (defaultValue :: DefaultValue s a) -> Parser @s @a (fromCliOption $ mconcat os) $ \ls -> do
@@ -70,8 +70,8 @@ named os = do
 --     - an active value: True
 --     - an default value: False
 --
---   The [CliOption] list can be used to override values or provide a help
-switch :: forall s. (KnownSymbol s) => [CliOption] -> Registry _ _
+--   The [OptionDescription] list can be used to override values or provide a help
+switch :: forall s. (KnownSymbol s) => [OptionDescription] -> Registry _ _
 switch os = do
   let fieldType = showType @Bool
   fun (\fieldOptions -> parseField @s @Bool fieldOptions NonPositional fieldType os)
@@ -83,10 +83,10 @@ switch os = do
 --     - a metavar
 --     - no active/default values
 --
---   The [CliOption] list can be used to override values or provide a help
+--   The [OptionDescription] list can be used to override values or provide a help
 --
 --   When the argument is read, its value is removed from the list of lexed values
-argument :: forall s a. (KnownSymbol s, Typeable a, Show a) => [CliOption] -> Registry _ _
+argument :: forall s a. (KnownSymbol s, Typeable a, Show a) => [OptionDescription] -> Registry _ _
 argument os = do
   let fieldType = showType @a
   fun (\fieldOptions -> parseField @s @a fieldOptions Positional fieldType os)
@@ -97,10 +97,10 @@ argument os = do
 --     - a metavar
 --     - no active/default values
 --
---   The [CliOption] list can be used to override values or provide a help
+--   The [OptionDescription] list can be used to override values or provide a help
 --
 --   When the argument is read, its value is left in the list of lexed values
-positional :: forall s a. (KnownSymbol s, Typeable a, Show a) => Int -> [CliOption] -> Registry _ _
+positional :: forall s a. (KnownSymbol s, Typeable a, Show a) => Int -> [OptionDescription] -> Registry _ _
 positional n os = do
   let p fieldOptions = \d -> do
         let o = mconcat $ metavar (makeMetavar fieldOptions (showType @a)) : os
@@ -136,7 +136,7 @@ setNoDefaultValues :: forall s a. (KnownSymbol s, Typeable a) => Registry _ _
 setNoDefaultValues =
   noDefaultValue @s @a
     <+ noActiveValue @s @a
-    <+ val (mempty :: [CliOption])
+    <+ val (mempty :: [OptionDescription])
 
 -- * Template Haskell
 
