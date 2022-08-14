@@ -4,7 +4,7 @@
 --   and for displaying a full help message
 module Data.Registry.Options.Help where
 
-import Data.Registry.Options.CliOption
+import Data.Registry.Options.OptionDescription
 import Data.Registry.Options.Text
 import qualified Data.Text as T
 import Protolude
@@ -20,7 +20,7 @@ data Help = Help
     -- | long description of a command
     helpCommandLongDescription :: Maybe Text,
     -- | list of fields for a given command. Each field contains some help text
-    helpCommandFields :: [CliOption],
+    helpCommandFields :: [OptionDescription],
     -- | list of subcommands
     helpCommands :: [Help]
   }
@@ -61,7 +61,7 @@ alt h1@(Help (Just _) _ _ _ _) (Help Nothing _ _ fs2 cs2) = noHelp {helpCommandF
 alt (Help Nothing _ _ fs1 cs1) (Help Nothing _ _ fs2 cs2) = noHelp {helpCommandFields = fs1 <> fs2, helpCommands = cs1 <> cs2}
 
 -- | Create a Help value from the description of a simple option
-fromCliOption :: CliOption -> Help
+fromCliOption :: OptionDescription -> Help
 fromCliOption o = noHelp {helpCommandFields = [o]}
 
 -- | Default display for a Help text
@@ -84,13 +84,13 @@ displaySubcommandsHelp :: [Help] -> [Text]
 displaySubcommandsHelp hs = do
   let names = shortUsage <$> hs
   let descriptions = fromMaybe "" . helpCommandShortDescription <$> hs
-  displayColumns names descriptions
+  fmap ("  " <>) $ displayColumns names descriptions
   where
     shortUsage (Help n _ _ fs cs) =
       fromMaybe "" n <> (if null fs then "" else " [OPTIONS]") <> (if null cs then "" else " [COMMANDS]")
 
 -- | Display the usage of a command
-displayUsage :: Maybe Text -> [CliOption] -> [Help] -> [Text]
+displayUsage :: Maybe Text -> [OptionDescription] -> [Help] -> [Text]
 displayUsage Nothing _ _ = []
 displayUsage (Just commandName) fs cs =
   [ "",
@@ -102,11 +102,11 @@ displayUsage (Just commandName) fs cs =
   ]
 
 -- | Display an example of option usage
-displayCliOptionUsage :: CliOption -> Text
-displayCliOptionUsage (CliOption (Just n) (Just s) m _) = "-" <> T.singleton s <> "|" <> "--" <> n <> maybe "" (" " <>) (displayMetavar m)
-displayCliOptionUsage (CliOption _ (Just s) m _) = "-" <> T.singleton s <> maybe "" (" " <>) (displayMetavar m)
-displayCliOptionUsage (CliOption (Just n) _ m _) = "--" <> n <> maybe "" (" " <>) (displayMetavar m)
-displayCliOptionUsage (CliOption _ _ m _) = fromMaybe "" (displayMetavar m)
+displayCliOptionUsage :: OptionDescription -> Text
+displayCliOptionUsage (OptionDescription (Just n) (Just s) m _) = "-" <> T.singleton s <> "|" <> "--" <> n <> maybe "" (" " <>) (displayMetavar m)
+displayCliOptionUsage (OptionDescription _ (Just s) m _) = "-" <> T.singleton s <> maybe "" (" " <>) (displayMetavar m)
+displayCliOptionUsage (OptionDescription (Just n) _ m _) = "--" <> n <> maybe "" (" " <>) (displayMetavar m)
+displayCliOptionUsage (OptionDescription _ _ m _) = fromMaybe "" (displayMetavar m)
 
 -- | Display a metavar, except for a switch because it is obvious that it is a boolean
 displayMetavar :: Maybe Text -> Maybe Text
@@ -115,7 +115,7 @@ displayMetavar (Just "BOOL") = Nothing
 displayMetavar m = m
 
 -- | Display the help for a list of options
-displayOptionsHelp :: [CliOption] -> [Text]
+displayOptionsHelp :: [OptionDescription] -> [Text]
 displayOptionsHelp [] = []
 displayOptionsHelp os = do
   let ds = displayOption <$> os
@@ -123,15 +123,15 @@ displayOptionsHelp os = do
   ["", "OPTIONS", ""] <> fmap ("  " <>) (displayColumns ds hs)
 
 -- | Display the full
-displayOption :: CliOption -> Text
-displayOption (CliOption (Just n) Nothing (Just m) _) = "--" <> n <> " " <> m
-displayOption (CliOption (Just n) (Just s) (Just m) _) = "-" <> T.singleton s <> ",--" <> n <> " " <> m
-displayOption (CliOption (Just n) Nothing Nothing _) = "--" <> n
-displayOption (CliOption (Just n) (Just s) Nothing _) = "-" <> T.singleton s <> ",--" <> n
-displayOption (CliOption Nothing (Just s) Nothing _) = "-" <> T.singleton s
-displayOption (CliOption Nothing (Just s) (Just m) _) = "-" <> T.singleton s <> " " <> m
-displayOption (CliOption Nothing _ (Just m) _) = m
-displayOption (CliOption Nothing _ Nothing _) = ""
+displayOption :: OptionDescription -> Text
+displayOption (OptionDescription (Just n) Nothing (Just m) _) = "--" <> n <> " " <> m
+displayOption (OptionDescription (Just n) (Just s) (Just m) _) = "-" <> T.singleton s <> ",--" <> n <> " " <> m
+displayOption (OptionDescription (Just n) Nothing Nothing _) = "--" <> n
+displayOption (OptionDescription (Just n) (Just s) Nothing _) = "-" <> T.singleton s <> ",--" <> n
+displayOption (OptionDescription Nothing (Just s) Nothing _) = "-" <> T.singleton s
+displayOption (OptionDescription Nothing (Just s) (Just m) _) = "-" <> T.singleton s <> " " <> m
+displayOption (OptionDescription Nothing _ (Just m) _) = m
+displayOption (OptionDescription Nothing _ Nothing _) = ""
 
 -- | Display the name of a command if defined
 displayCommandName :: Help -> Text
