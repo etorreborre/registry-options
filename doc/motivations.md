@@ -180,4 +180,4 @@ With `registry-options` I tried to separate various concerns:
 
   4. the input string is translated to a list of lexemes. This allows values to come from the command line, from environment variables or from a configuration file
 
-  5. the help...
+  5. use registry + pretty print for the help?

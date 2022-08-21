@@ -19,11 +19,11 @@ data Help = Help
     helpCommandShortDescription :: Maybe Text,
     -- | long description of a command
     helpCommandLongDescription :: Maybe Text,
-    -- | list of fields for a given command. Each field contains some help text
+    -- | list of fields for a given command. Each option description contains some help text
     helpCommandFields :: [OptionDescription],
     -- | list of subcommands
     helpCommands :: [Help],
-    -- | True if the command name is the default subcommand when not present
+    -- | True if the command name is the default subcommand when not mentioned explicitly
     helpDefaultSubcommand :: Bool
   }
   deriving (Eq, Show)
@@ -80,6 +80,8 @@ alt (Help Nothing _ _ fs1 cs1 _) (Help Nothing _ _ fs2 cs2 _) = noHelp {helpComm
 -- | Create a Help value from the description of a simple option
 fromCliOption :: OptionDescription -> Help
 fromCliOption o = noHelp {helpCommandFields = [o]}
+
+-- * Display
 
 -- | Default display for a Help text
 displayHelp :: Help -> Text
