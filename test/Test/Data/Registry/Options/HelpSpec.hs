@@ -71,8 +71,7 @@ test_help_option = test "a parser can have help and version options" $ do
           "  -h,--help BOOL           Display this help message",
           "  -f,--force BOOL          Force the action even if a file already exists with the same name",
           "  SOURCE                   Source path",
-          "  TARGET                   Target path",
-          ""
+          "  TARGET                   Target path"
         ]
 
 parsers =

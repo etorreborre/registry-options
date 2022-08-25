@@ -64,8 +64,7 @@ test_maker = test "create a parser for the maker program" $ do
           "  maker test [-j|--threads INT] [ANY]",
           "",
           "  -j,--threads INT          Number of threads to use",
-          "  ANY                       ",
-          ""
+          "  ANY                       "
         ]
 
 parsers :: Registry _ _

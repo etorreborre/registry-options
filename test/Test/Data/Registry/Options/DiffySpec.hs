@@ -51,8 +51,7 @@ test_diffy = test "create a parser for the diffy program" $ do
           "  diffy create [-o|--out FILE] [-s|--src DIR]",
           "",
           "  -o,--out FILE          Output file",
-          "  -s,--src DIR           Source directory",
-          ""
+          "  -s,--src DIR           Source directory"
         ]
 
 parsers :: Registry _ _

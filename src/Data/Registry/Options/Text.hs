@@ -63,3 +63,7 @@ parenthesizeText = parenthesizeTextWhen True
 parenthesizeTextWhen :: Bool -> Text -> Text
 parenthesizeTextWhen False t = t
 parenthesizeTextWhen True t = "(" <> t <> ")"
+
+-- | Indent some text with a fixed piece of text
+indent :: Text -> Text -> Text
+indent i t = T.intercalate "\n" $ (i <> ) <$> T.lines t
