@@ -97,100 +97,6 @@ fromCliOption o = noHelp {helpCommandFields = [o]}
 displayHelp :: Help -> Text
 displayHelp = display (make @(Display "any" Help Text) textRegistry)
 
--- | Display the help for a command
-displayCommand :: Maybe Text -> Maybe Text -> Maybe Text -> [Text]
-displayCommand Nothing _ _ = []
-displayCommand (Just n) s l =
-  n <> maybe "" (" - " <>) s : maybe [] (\long -> ["", "  " <> long]) l
-
--- | Display the help for a list of subcommands
-displaySubcommandsHelp :: Maybe Text -> [Help] -> [Text]
-displaySubcommandsHelp parent hs = do
-  let names = mkShortUsage <$> hs
-  let descriptions = mkShortDescription <$> hs
-  (("  " <>) <$> displayColumns names descriptions)
-    <> [""]
-    <> (displaySubcommandHelp parent =<< hs)
-  where
-    mkShortUsage (Help n _ _ _ fs cs _) =
-      fromMaybe "" n <> (if null fs then "" else " [OPTIONS]") <> (if null cs then "" else " [COMMANDS]")
-
-    mkShortDescription (Help _ _ s _ _ _ isDefault) =
-      fromMaybe "" s <> if isDefault then " (default)" else ""
-
--- | Display the help for a subcommand
-displaySubcommandHelp :: Maybe Text -> Help -> [Text]
-displaySubcommandHelp parent (Help n _ s l fs cs isDefault) =
-  displayCommand subCommandName s l
-    <> [""]
-    <> displayUsage subCommandName fs cs
-    <> [""]
-    <> displayOptionsHelp fs
-    <> [""]
-  where
-    subCommandName = parentAndSubcommandName parent $ parenthesizeTextWhen isDefault <$> n
-
-    parentAndSubcommandName (Just p) (Just n') = Just (p <> " " <> n')
-    parentAndSubcommandName Nothing n' = n'
-    parentAndSubcommandName _ Nothing = Nothing
-
--- | Display the usage of a command
-displayUsage :: Maybe Text -> [OptionDescription] -> [Help] -> [Text]
-displayUsage Nothing _ _ = []
-displayUsage (Just commandName) fs cs =
-  [ "  "
-      <> commandName
-      <> (if null fs then "" else " " <> T.unwords (fmap (bracketText . displayCliOptionUsage) fs))
-      <> (if null cs then "" else " " <> T.unwords (fmap (bracketText . displayCommandName) cs))
-  ]
-
--- | Display an example of option usage
-displayCliOptionUsage :: OptionDescription -> Text
-displayCliOptionUsage (OptionDescription (Just n) _ (Just s) m _) = "-" <> T.singleton s <> "|" <> "--" <> n <> maybe "" (" " <>) (displayMetavarUsage m)
-displayCliOptionUsage (OptionDescription _ _ (Just s) m _) = "-" <> T.singleton s <> maybe "" (" " <>) (displayMetavarUsage m)
-displayCliOptionUsage (OptionDescription (Just n) _ _ m _) = "--" <> n <> maybe "" (" " <>) (displayMetavarUsage m)
-displayCliOptionUsage (OptionDescription _ _ _ m _) = fromMaybe "" (displayMetavarUsage m)
-
--- | Display a metavar, except for a switch because it is obvious that it is a boolean or a String
-displayMetavarUsage :: Maybe Text -> Maybe Text
-displayMetavarUsage Nothing = Nothing
-displayMetavarUsage (Just "BOOL") = Nothing
-displayMetavarUsage (Just "[CHAR]") = Nothing
-displayMetavarUsage m = m
-
--- | Display a metavar in a full help text
---   [Char] is transformed to String
-displayMetavar :: Text -> Text
-displayMetavar "[CHAR]" = "String"
-displayMetavar m = m
-
--- | Display the help for a list of options
-displayOptionsHelp :: [OptionDescription] -> [Text]
-displayOptionsHelp [] = []
-displayOptionsHelp os = do
-  let ds = displayOption <$> os
-  let hs = fromMaybe "" . _help <$> os
-  fmap ("  " <>) (displayColumns ds hs)
-
--- | Display the full description for an option
-displayOption :: OptionDescription -> Text
-displayOption (OptionDescription n as s m _) =
-  T.unwords $
-    filter
-      (not . T.null)
-      [ T.intercalate
-          ","
-          ( toList (fmap (("-" <>) . T.singleton) s)
-              <> toList (fmap ("--" <>) n)
-              <> (("--" <>) <$> as)
-          ),
-        maybe "" displayMetavar m
-      ]
-
--- | Display the name of a command if defined
-displayCommandName :: Help -> Text
-displayCommandName = fromMaybe "" . helpCommandName
-
 newtype Display (a :: Symbol) b c = Display {display :: b -> c}
   deriving newtype (Functor, Applicative)
 
@@ -213,6 +119,8 @@ textRegistry =
     <: fun displayOptionText
     <: fun displayOptionFlagText
     <: fun displayOptionHelpText
+    <: fun displayMetavarUsageText
+    <: fun displayMetavarText
 
 -- | *Template*
 --
@@ -273,9 +181,10 @@ displayAllText dt du dos dcs = Display $ \help ->
 -- | Example
 --
 --   fs - a utility to copy and move files
-displayHelpTitleText :: Display "title" Help Text
-displayHelpTitleText = Display $ \(Help n _ s l _ _ _) ->
-  T.intercalate "\n" $ displayCommand n s l
+--
+--   We reused the display for a command title, which should work for either a top-level or a sub command
+displayHelpTitleText :: Display "command-title" Help Text -> Display "title" Help Text
+displayHelpTitleText = coerce
 
 -- | Example
 --
@@ -378,10 +287,19 @@ displayCommandDetailText dct dcu dco = Display $ \h ->
 -- | Example
 --
 --   fs move - move a file from SOURCE to TARGET
+--
+--    - the parent command name is appended to the command name if the parent is defined
+--    - if the command is a default subcommand the name is parenthesized
 displayCommandTitleText :: Display "command-title" Help Text
 displayCommandTitleText = Display $ \(Help n p s l _ _ isDefault) -> do
-  let commandName = (\p1 s1 -> p1 <> " " <> s1) <$> p <*> (parenthesizeTextWhen isDefault <$> n)
+  let commandName = (maybe "" (<> " ") p <>) <$> (parenthesizeTextWhen isDefault <$> n)
   T.intercalate "\n" $ displayCommand commandName s l
+  where
+    -- | Display the help for a command
+    displayCommand :: Maybe Text -> Maybe Text -> Maybe Text -> [Text]
+    displayCommand Nothing _ _ = []
+    displayCommand (Just n) s l =
+      n <> maybe "" (" - " <>) s : maybe [] (\long -> ["", "  " <> long]) l
 
 -- | Example
 --
@@ -403,8 +321,12 @@ displayCommandOptionsText df dh = Display $ \h -> do
 -- | Example
 --
 --   [-h|--help]
-displayOptionUsageText :: Display "option-usage" OptionDescription Text
-displayOptionUsageText = Display displayCliOptionUsage
+displayOptionUsageText :: Display "metavar-usage" OptionDescription Text -> Display "option-usage" OptionDescription Text
+displayOptionUsageText dmu = Display $ \case
+  o@(OptionDescription (Just n) _ (Just s) _ _) -> "-" <> T.singleton s <> "|" <> "--" <> (T.unwords . filter (not . T.null) $ [n, display dmu o])
+  o@(OptionDescription _ _ (Just s) _ _) -> "-" <> (T.unwords . filter (not . T.null) $ [T.singleton s, display dmu o])
+  o@(OptionDescription (Just n) _ _ _ _) -> "--" <> (T.unwords . filter (not . T.null) $ [n, display dmu o])
+  o@(OptionDescription _ _ _ _ _) -> display dmu o
 
 -- | Example
 --
@@ -415,11 +337,48 @@ displayOptionText optionFlag optionHelp = (\a b -> a <> "  " <> b) <$> coerce op
 -- | Example
 --
 --   -h,--help BOOL
-displayOptionFlagText :: Display "option-flag" OptionDescription Text
-displayOptionFlagText = Display displayOption
+displayOptionFlagText :: Display "metavar" OptionDescription Text -> Display "option-flag" OptionDescription Text
+displayOptionFlagText dm = Display $ \o@(OptionDescription n as s _ _) ->
+  T.unwords $
+    filter
+      (not . T.null)
+      [ T.intercalate
+          ","
+          ( toList (fmap (("-" <>) . T.singleton) s)
+              <> toList (fmap ("--" <>) n)
+              <> (("--" <>) <$> as)
+          ),
+        display dm o
+      ]
 
 -- | Example
 --
 --   Display this help message
 displayOptionHelpText :: Display "option-help" OptionDescription Text
 displayOptionHelpText = Display (fromMaybe "" . _help)
+
+-- | Display a metavar, except for a switch because it is obvious that it is a boolean
+--   or for a String flag
+--
+--   Example
+--
+--   FILE
+--
+displayMetavarUsageText :: Display "metavar-usage" OptionDescription Text
+displayMetavarUsageText = Display $ \(OptionDescription _ _ _ m _) ->
+  case m of
+   Nothing -> ""
+   (Just "BOOL") -> ""
+   (Just "[CHAR]") -> ""
+   Just s -> s
+
+-- | Display a metavar in a full help text
+--
+--   [Char] is transformed to String
+--
+displayMetavarText :: Display "metavar" OptionDescription Text
+displayMetavarText = Display $  \(OptionDescription _ _ _ m _) ->
+  case m of
+    Nothing -> ""
+    Just "[CHAR]" -> "String"
+    Just s -> s
