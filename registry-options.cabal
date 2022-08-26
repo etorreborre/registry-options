@@ -27,6 +27,7 @@ library
       Data.Registry.Options.Defaults
       Data.Registry.Options.DefaultValues
       Data.Registry.Options.Display
+      Data.Registry.Options.DisplayHelpDoc
       Data.Registry.Options.DisplayHelpText
       Data.Registry.Options.FieldConfiguration
       Data.Registry.Options.Help

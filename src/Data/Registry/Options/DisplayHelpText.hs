@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
@@ -62,7 +61,6 @@ displayTextRegistry =
     <: fun displayCommandUsageText
     <: fun displayCommandOptionsText
     <: fun displayOptionUsageText
-    <: fun displayOptionText
     <: fun displayOptionFlagText
     <: fun displayOptionHelpText
     <: fun displayMetavarUsageText
@@ -266,19 +264,14 @@ displayCommandOptionsText df dh = Display $ \h -> do
 
 -- | Example
 --
---   [-h|--help]
+--   -h|--help
+--   -f|--file FILE
 displayOptionUsageText :: Display "metavar-usage" OptionDescription Text -> Display "option-usage" OptionDescription Text
 displayOptionUsageText dmu = Display $ \case
   o@(OptionDescription (Just n) _ (Just s) _ _) -> "-" <> T.singleton s <> "|" <> "--" <> (T.unwords . filter (not . T.null) $ [n, display dmu o])
   o@(OptionDescription _ _ (Just s) _ _) -> "-" <> (T.unwords . filter (not . T.null) $ [T.singleton s, display dmu o])
   o@(OptionDescription (Just n) _ _ _ _) -> "--" <> (T.unwords . filter (not . T.null) $ [n, display dmu o])
-  o@(OptionDescription _ _ _ _ _) -> display dmu o
-
--- | Example
---
---   -h,--help BOOL           Display this help message
-displayOptionText :: Display "option-flag" OptionDescription Text -> Display "option-help" OptionDescription Text -> Display "option" OptionDescription Text
-displayOptionText optionFlag optionHelp = (\a b -> a <> "  " <> b) <$> coerce optionFlag <*> coerce optionHelp
+  o -> display dmu o
 
 -- | Example
 --
