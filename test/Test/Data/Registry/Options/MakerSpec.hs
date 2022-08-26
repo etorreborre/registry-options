@@ -23,7 +23,7 @@ test_maker = test "create a parser for the maker program" $ do
   parse p "maker -j 3 --release f1 f2" === Right (MakerBuild $ Build 3 Release ["f1", "f2"])
   parse p "maker test -j 3 f1 f2" === Right (MakerTest $ Test 3 ["f1", "f2"])
 
-  T.lines (displayHelp (parserHelp p))
+  displayLines (parserHelp p)
     === [ "maker - Maker v1.0",
           "Make it",
           "",
@@ -48,7 +48,6 @@ test_maker = test "create a parser for the maker program" $ do
           "",
           "  maker wipe",
           "",
-          "",
           "maker (build) - Build the project",
           "",
           "  maker (build) [-j|--threads INT] [-d|--debug METHOD] [-r|--release METHOD] [-p|--profile METHOD] [FILE]",
@@ -57,14 +56,14 @@ test_maker = test "create a parser for the maker program" $ do
           "  -d,--debug METHOD            Debug",
           "  -r,--release METHOD          Release",
           "  -p,--profile METHOD          Profile",
-          "  FILE                         ",
+          "  FILE",
           "",
           "maker test - Run the test suite",
           "",
           "  maker test [-j|--threads INT] [ANY]",
           "",
           "  -j,--threads INT          Number of threads to use",
-          "  ANY                       "
+          "  ANY"
         ]
 
 parsers :: Registry _ _
@@ -87,3 +86,7 @@ parsers =
 
 makeMethod :: Parser "debug" Method -> Parser "release" Method -> Parser "profile" Method -> Parser "method" Method
 makeMethod p1 p2 p3 = coerce p1 <|> coerce p2 <|> coerce p3
+
+-- * Helpers
+
+displayLines h = fmap trimRight (T.lines (displayHelp h))

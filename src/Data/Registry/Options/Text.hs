@@ -67,3 +67,7 @@ parenthesizeTextWhen True t = "(" <> t <> ")"
 -- | Indent some text with a fixed piece of text
 indent :: Text -> Text -> Text
 indent i t = T.intercalate "\n" $ (i <> ) <$> T.lines t
+
+-- | Remove spaces on the right
+trimRight :: Text -> Text
+trimRight = T.pack . reverse . dropWhile isSpace . reverse. T.unpack

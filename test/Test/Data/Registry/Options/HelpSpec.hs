@@ -21,7 +21,7 @@ test_help_option = test "a parser can have help and version options" $ do
   parse fsParser "fs --version" === Right (FsVersion True)
   parse fsParser "fs copy --help" === Right (FsCopy $ CopyHelp True)
 
-  T.lines (displayHelp (parserHelp copyParser))
+  displayLines (parserHelp copyParser)
     === [ "copy - copy a file from SOURCE to TARGET",
           "",
           "USAGE",
@@ -31,13 +31,14 @@ test_help_option = test "a parser can have help and version options" $ do
           "OPTIONS",
           "",
           "  -h,--help BOOL            Display this help message",
-          "  -f,--force BOOL           Force the action even if a file already exists with the same name",
+          "  -f,--force BOOL           Force the action even if a file already exists",
+          "                            with the same name",
           "  -r,--retries INT          number of retries in case of an error",
           "  SOURCE                    Source path",
           "  TARGET                    Target path"
         ]
 
-  T.lines (displayHelp (parserHelp fsParser))
+  displayLines (parserHelp fsParser)
     === [ "fs - a utility to copy and move files",
           "",
           "USAGE",
@@ -59,7 +60,8 @@ test_help_option = test "a parser can have help and version options" $ do
           "  fs copy [-h|--help] [-f|--force] [-r|--retries INT] [SOURCE] [TARGET]",
           "",
           "  -h,--help BOOL            Display this help message",
-          "  -f,--force BOOL           Force the action even if a file already exists with the same name",
+          "  -f,--force BOOL           Force the action even if a file already exists",
+          "                            with the same name",
           "  -r,--retries INT          number of retries in case of an error",
           "  SOURCE                    Source path",
           "  TARGET                    Target path",
@@ -69,7 +71,8 @@ test_help_option = test "a parser can have help and version options" $ do
           "  fs move [-h|--help] [-f|--force] [SOURCE] [TARGET]",
           "",
           "  -h,--help BOOL           Display this help message",
-          "  -f,--force BOOL          Force the action even if a file already exists with the same name",
+          "  -f,--force BOOL          Force the action even if a file already exists",
+          "                           with the same name",
           "  SOURCE                   Source path",
           "  TARGET                   Target path"
         ]
@@ -87,3 +90,7 @@ parsers =
     <: argument @"target" @File [metavar "TARGET", help "Target path"]
     <: decoderOf File
     <: defaults
+
+-- * Helpers
+
+displayLines h = fmap trimRight (T.lines (displayHelp h))

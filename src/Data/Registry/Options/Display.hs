@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
--- | Shared data type for displaying the help
+-- | Abstract data type for displaying the help
+--   We are currently displaying the help as a Box from the boxes library
+--   but we could as well use Text or Doc () from Prettyprinter
 module Data.Registry.Options.Display where
 
 import Protolude

@@ -8,7 +8,7 @@ import Data.Registry.Options.Decoder as Options
 import Data.Registry.Options.DefaultValues as Options
 import Data.Registry.Options.Defaults as Options
 import Data.Registry.Options.Display as Options
-import Data.Registry.Options.DisplayHelpText as Options
+import Data.Registry.Options.DisplayHelpBox as Options
 import Data.Registry.Options.FieldConfiguration as Options
 import Data.Registry.Options.Help as Options
 import Data.Registry.Options.Lexemes as Options

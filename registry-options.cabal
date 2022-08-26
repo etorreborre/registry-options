@@ -27,7 +27,7 @@ library
       Data.Registry.Options.Defaults
       Data.Registry.Options.DefaultValues
       Data.Registry.Options.Display
-      Data.Registry.Options.DisplayHelpText
+      Data.Registry.Options.DisplayHelpBox
       Data.Registry.Options.FieldConfiguration
       Data.Registry.Options.Help
       Data.Registry.Options.Lexemes
@@ -74,10 +74,10 @@ library
   ghc-options: -Wall -Wcompat -Wincomplete-record-updates -fhide-source-paths -fprint-potential-instances -fno-warn-partial-type-signatures -optP-Wno-nonportable-include-path -Wincomplete-uni-patterns
   build-depends:
       base >=4.7 && <5
+    , boxes >=0.1 && <1
     , bytestring >=0.10 && <1
     , containers >=0.2 && <1
     , multimap >=1.2 && <2
-    , prettyprinter >=1.7 && <2
     , protolude ==0.3.*
     , registry >=0.2 && <0.4
     , template-haskell >=2.13 && <3.0
@@ -95,6 +95,7 @@ test-suite spec
       AutoDiscoveredSpecs
       Test.Data.Registry.Options.Diffy
       Test.Data.Registry.Options.DiffySpec
+      Test.Data.Registry.Options.DisplayHelpBoxSpec
       Test.Data.Registry.Options.Fs
       Test.Data.Registry.Options.GitSpec
       Test.Data.Registry.Options.HelpSpec
@@ -142,11 +143,11 @@ test-suite spec
   ghc-options: -Wall -Wcompat -Wincomplete-record-updates -fhide-source-paths -fprint-potential-instances -fno-warn-partial-type-signatures -optP-Wno-nonportable-include-path -threaded -rtsopts -with-rtsopts=-N -fno-warn-orphans -fno-warn-missing-signatures -fno-warn-incomplete-uni-patterns -fno-warn-type-defaults -optP-Wno-nonportable-include-path
   build-depends:
       base >=4.7 && <5
+    , boxes >=0.1 && <1
     , bytestring >=0.10 && <1
     , containers >=0.2 && <1
     , hedgehog
     , multimap >=1.2 && <2
-    , prettyprinter >=1.7 && <2
     , protolude ==0.3.*
     , registry >=0.2 && <0.4
     , registry-hedgehog

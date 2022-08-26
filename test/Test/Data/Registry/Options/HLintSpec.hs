@@ -15,14 +15,12 @@ import Test.Tasty.Hedgehogx hiding (Command, OptionDescription, maybe)
 test_hlint = test "create a parser for the HLint program" $ do
   let p = make @(Parser Command HLint) $ parsers
 
-  T.lines (displayHelp (parserHelp p))
+  displayLines (parserHelp p)
     === [ "hlint - HLint v0.0.0, (C) Neil Mitchell",
           "",
           "  Hlint gives hints on how to improve Haskell code",
-          "",
-          "To check all Haskell files in 'src' and generate a report type:",
-          "  hlint src --report",
-          "",
+          "  To check all Haskell files in 'src' and generate a",
+          "  report type: hlint src --report",
           "",
           "USAGE",
           "",
@@ -48,7 +46,7 @@ test_hlint = test "create a parser for the HLint program" $ do
           "  -V,--version BOOL                  Print version information",
           "  -v,--verbose BOOL                  Loud verbosity",
           "  -q,--quiet BOOL                    Quiet verbosity",
-          "  FILES/DIRS                         "
+          "  FILES/DIRS"
         ]
 
 parsers :: Registry _ _
@@ -87,3 +85,7 @@ parsers =
     <: switch @"quiet" [help "Quiet verbosity"]
     <: arguments @"files" @FilePath [metavar "FILES/DIRS"]
     <: defaults
+
+-- * Helpers
+
+displayLines h = fmap trimRight (T.lines (displayHelp h))

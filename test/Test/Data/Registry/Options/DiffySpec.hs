@@ -19,7 +19,7 @@ test_diffy = test "create a parser for the diffy program" $ do
   parse p "diffy create --out o.txt --src in" === Right (DiffyCreate $ Create "o.txt" (Just "in"))
   parse p "diffy diff --out o.txt old new" === Right (DiffyDiff $ Diff "o.txt" "old" "new")
 
-  T.lines (displayHelp (parserHelp p))
+  displayLines (parserHelp p)
     === [ "diffy - Diffy v1.0",
           "",
           "  Create and compare differences",
@@ -70,3 +70,7 @@ parsers =
     <: switch @"help" [short '?', help "Display help message"]
     <: switch @"version" [short 'V', help "Print version information"]
     <: defaults
+
+-- * Helpers
+
+displayLines h = fmap trimRight (T.lines (displayHelp h))
