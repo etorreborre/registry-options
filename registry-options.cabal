@@ -26,6 +26,8 @@ library
       Data.Registry.Options.Decoder
       Data.Registry.Options.Defaults
       Data.Registry.Options.DefaultValues
+      Data.Registry.Options.Display
+      Data.Registry.Options.DisplayHelpText
       Data.Registry.Options.FieldConfiguration
       Data.Registry.Options.Help
       Data.Registry.Options.Lexemes
@@ -75,6 +77,7 @@ library
     , bytestring >=0.10 && <1
     , containers >=0.2 && <1
     , multimap >=1.2 && <2
+    , prettyprinter >=1.7 && <2
     , protolude ==0.3.*
     , registry >=0.2 && <0.4
     , template-haskell >=2.13 && <3.0
@@ -143,6 +146,7 @@ test-suite spec
     , containers >=0.2 && <1
     , hedgehog
     , multimap >=1.2 && <2
+    , prettyprinter >=1.7 && <2
     , protolude ==0.3.*
     , registry >=0.2 && <0.4
     , registry-hedgehog
