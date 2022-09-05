@@ -431,8 +431,11 @@ mParagraph :: ParagraphWidth -> Maybe Text -> Box
 mParagraph _ Nothing = nullBox
 mParagraph w (Just t) = paragraph w t
 
+-- | Width of paragraph, used in conjunction with the 'paragraph' function
 newtype ParagraphWidth = ParagraphWidth Int deriving (Eq, Show, Num)
 
+-- | Those parameters are used when creating a table with the
+--   'table' function
 data TableParameters = TableParameters
   { horizontalAlignment :: Alignment,
     verticalAlignment :: Alignment,
