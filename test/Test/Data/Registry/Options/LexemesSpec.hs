@@ -14,6 +14,9 @@ test_lexed = test "lex the command line" $ do
   mkLexemes ["-o"] === flagLexemes "o"
   mkLexemes ["-opq"] === flagsLexemes ["o", "p", "q"]
   mkLexemes ["--o"] === flagLexemes "o"
+  mkLexemes ["-o=v"] === optionLexemes "o" "v"
+  mkLexemes ["--option=value"] === optionLexemes "option" "value"
+  mkLexemes ["-o1=v1", "-o2", "v2"] === optionLexemes "o1" "v1" <> ambiguousLexemes "o2" ["v2"]
   mkLexemes ["--o", "v"] === ambiguousLexemes "o" ["v"]
   mkLexemes ["--o", "v1", "v2"] === ambiguousLexemes "o" ["v1", "v2"]
   mkLexemes ["-o", "--o", "v"] === flagsLexemes ["o"] <> ambiguousLexemes "o" ["v"]

@@ -17,11 +17,11 @@
 --    a given name is an option or a flag.
 module Data.Registry.Options.Lexemes where
 
-import qualified Data.List as L
-import qualified Data.Map.Strict as Map
+import Data.List qualified as L
+import Data.Map.Strict qualified as Map
 import Data.MultiMap (MultiMap)
-import qualified Data.MultiMap as M
-import qualified Data.Text as T
+import Data.MultiMap qualified as M
+import Data.Text qualified as T
 import Protolude as P
 import Prelude (show)
 
@@ -68,27 +68,35 @@ mkLexemes [] = mempty
 mkLexemes ("--" : rest) = argsLexemes rest
 mkLexemes [t] =
   -- this is either a single flag or an argument
-  if isDashed t then makeFlagsLexeme t else argLexemes (dropDashed t)
+  if isDashed t then
+    -- if there is an = sign this an option
+    if "=" `T.isInfixOf` t
+    then makeEqualOptionLexeme t
+    else  makeFlagsLexeme t
+  else argLexemes (dropDashed t)
 mkLexemes (t : rest) =
   -- if we get an option name
-  if isDashed t
-    then do
-      let key = dropDashed t
-      let (vs, others) = L.break isDashed rest
-      -- if there are no values after the option name, we have a flag
-      if null vs
-        then makeFlagsLexeme t <> mkLexemes others
-        else -- otherwise
+  if isDashed t then
+    -- if the option value is appended directly to the option name
+    if "=" `T.isInfixOf` t then makeEqualOptionLexeme t <> mkLexemes rest
+    -- otherwise
+    else  do
+        let key = dropDashed t
+        let (vs, others) = L.break isDashed rest
+        -- if there are no values after the option name, we have a flag
+        if null vs
+          then makeFlagsLexeme t <> mkLexemes others
+          else -- otherwise
 
-        -- if there are additional options/flags, then we collect values for the
-        -- current option and make lexemes for the rest
+          -- if there are additional options/flags, then we collect values for the
+          -- current option and make lexemes for the rest
 
-          if any isDashed others
-            then optionsLexemes key vs <> mkLexemes others
-            else -- this case is ambiguous, possibly the values are repeated values for an option
-            -- or the option is a flag with no values and all the rest are arguments
-              ambiguousLexemes key rest
-    else argLexemes t <> mkLexemes rest
+            if any isDashed others
+              then optionsLexemes key vs <> mkLexemes others
+              else -- this case is ambiguous, possibly the values are repeated values for an option
+              -- or the option is a flag with no values and all the rest are arguments
+                ambiguousLexemes key rest
+      else argLexemes t <> mkLexemes rest
 
 -- | Create lexemes for an option name + an option value
 optionLexemes :: Text -> Text -> Lexemes
@@ -98,13 +106,22 @@ optionLexemes k = optionsLexemes k . pure
 optionsLexemes :: Text -> [Text] -> Lexemes
 optionsLexemes k vs = Lexemes (M.fromList ((k,) <$> vs)) mempty mempty Nothing
 
+-- | Create an option for --option=value or -o=value
+--   Return mempty if no equal sign is present
+makeEqualOptionLexeme :: Text -> Lexemes
+makeEqualOptionLexeme t = do
+  case T.splitOn "=" (dropDashed t) of
+    [optionName, optionValue] -> optionLexemes optionName optionValue
+    -- this case should not happen
+    _ -> mempty
+
 -- | Create lexemes for a list of potentially short flag names
 --   e.g. makeFlagsLexeme "-opq" === flagsLexemes ["o", "p", "q"]
 makeFlagsLexeme :: Text -> Lexemes
 makeFlagsLexeme t =
   ( if isSingleDashed t
-      -- split the letters
-      then flagsLexemes . fmap T.singleton . T.unpack
+      then -- split the letters
+        flagsLexemes . fmap T.singleton . T.unpack
       else flagLexemes
   )
     (dropDashed t)
