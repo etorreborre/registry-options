@@ -4,23 +4,23 @@ This library started as an exploration after a discussion with [Andreas Hermann]
 
 At some stage I wondered if using [`registry`](https://github.com/etorreborre/registry) could be beneficial. Parsing and decoding might be seen as similar problems and I had already worked on providing flexible decoders for [MessagePack](https://github.com/etorreborre/registry-messagepack) and [JSON](https://github.com/etorreborre/registry-aeson).
 
-Parsing command-line options turns out to be a bit trickier than just decoding values. Not only we need to parse strings into Haskell values but one common feature is the ability to display a help text describing all options. This is exactly why the most used Haskell library for parsing options is [`optparse-applicative`](https://hackage.haskell.org/package/optparse-applicative). Using an `Applicative` instance to compose parsers allows to collect the help text for each option since the structure of the overall parser is statically defined (the parser for an option - and its help - cannot depend on a parsed value).
+Parsing command-line options turns out to be a bit trickier than just decoding values. Not only we need to parse strings into Haskell values but we also want to display a help text describing all options. This is exactly why the most used Haskell library for parsing options is [`optparse-applicative`](https://hackage.haskell.org/package/optparse-applicative). Using an `Applicative` instance to compose parsers allows to collect the help text for each option since the structure of the overall parser is statically defined (the parser for an option - and its help - cannot depend on a parsed value).
 
 # A better API?
 
 So why create yet another library? One reason was to see if there was a way to define a more  intuitive API compared to `optparse-applicative`. With `optparse-applicative` I was initially confused by functions like:
 
- - `option auto`: an option for a type with a `Read` instance (that makes a `ReadM` value, what is `ReadM`?)
+  - `option auto`: an option for a type with a `Read` instance (`auto` makes a `ReadM` value, what is `ReadM`?)
  - `strOption`: an option for a `String` (shortcut for `option str`)
  - `switch`: a flag for a `Bool`
  - `flag`: an option for with an _active_ and a _default_ value
- - `flag'`: an option for with an _active_ value
+ - `flag'`: an option for with only an _active_ value
 
 After a while it starts to make sense but then, looking at the API, there are many data types to ingest, like `data Mod f a` for "modifiers" which is cramming a lot of concepts under the same data type (help, default values, display function for default values, etc...).
 
 The second reason was that I wanted to see if a bit of meta-programming could reduce the amount of boilerplate necessary to create parsers. This is something attempted by the [`optparse-generic`](https://hackage.haskell.org/package/optparse-generic) for example where Generics are used to derive a command-line parser directly from the definition of a data type.
 
-This is where I started realizing that the design space for command-line parsers was large and that people tried various approaches for this common need.
+This is where I started realizing that the design space for command-line parsers was large and that many people tried to approach that problem from different angles.
 
 # Panorama
 
@@ -131,7 +131,7 @@ oName =
 
 In the code above lenses are used to transform parsed values into actions to be performed on a `Name` with default values. Moreover the `<>` append operation on parsers is implemented using `<||>` which means that input values can be consumed at different places in the input stream.
 
-Note the `uu-options` library does not provide any support for generating help messages. So while it is an interesting library in terms of parsing capabilities, it is not yet suitable as a production options parsing library.
+Note that the `uu-options` library does not provide any support for generating help messages. So while it is an interesting library in terms of parsing capabilities, it is not yet suitable as a production options parsing library.
 
 ## Impure libraries
 
@@ -149,7 +149,7 @@ sample = Sample {
 } &= summary "Sample v1"
 ```
 
-As you can see it adds annotations on top of Haskell values without changing their type! What kind of black magic is that?! This additional information actually goes to a [global mutable variable](https://hackage.haskell.org/package/cmdargs-0.10.21/docs/src/System.Console.CmdArgs.Annotate.html#ref).
+As you can see it adds annotations on top of Haskell values without changing their type! What kind of black magic is that?! This additional information actually goes to a [global mutable variable](https://hackage.haskell.org/package/cmdargs-0.10.21/docs/src/System.Console.CmdArgs.Annotate.html#ref) :-).
 
 If that makes your heart sink there is also a "pure" style with another syntax:
 ```haskell
@@ -170,14 +170,87 @@ Because of that, HFlags uses a [global mutable variable](https://github.com/nilc
 
 # The registry-options way
 
-With `registry-options` I tried to separate various concerns:
+As we can see there are many ways to skin a cat. I don't pretend that `registry-options` is vastly better than the rest out there but it has some distinctive traits.
 
-  1. `Decoders` are the equivalent of the `ReadM` data type in `optparse-applicative`. They are used to read strings and transform them into Haskell values
+## Using a registry to wire everything together
 
-  2. A `Parser s a` extracts a Haskell value `a` from a list of input strings and returns the remainder. That value has a name `s`
+First of all, a `registry` is used to wire together all the configuration needed to produce the final parser. Let's see an example:
+```haskell
+-- define parsers for options and commands
+parsers =
+  $(makeCommand ''Fs [shortDescription "a utility to copy and move files"])
+    <: $(makeCommand ''Move [shortDescription "move a file from SOURCE to TARGET"])
+    <: $(makeCommand ''Copy [shortDescription "copy a file from SOURCE to TARGET"])
+    <: switch @"force" [help "Force the action even if a file already exists with the same name"]
+    <: fun (maybeParser @"retries" @Int)
+    <: option @"retries" @Int [help "number of retries in case of an error"]
+    <: flag @"help" @Bool True Nothing [help "Display this help message"]
+    <: flag @"version" @Bool True Nothing [help "Display the version"]
+    <: argument @"source" @File [metavar "SOURCE", help "Source path"]
+    <: argument @"target" @File [metavar "TARGET", help "Target path"]
+    <: decoderOf File
+    <: defaults
 
-  3. configurable conventions are used to associate named values to the fields of a Haskell data type
+-- access the Fs parser
+let fsParser = make @(Parser Command Fs) $ parsers
+```
 
-  4. the input string is translated to a list of lexemes. This allows values to come from the command line, from environment variables or from a configuration file
+In the code above:
 
-  5. use registry + pretty print for the help?
+  1. `Decoders` are separated from parsers. A `Decoder` is simply a way to read a `String` and return a Haskell value (the equivalent of the `ReadM` data type in `optparse-applicative`)
+
+  2. base parsers are defined as `switch`, `flag`, `option`, `argument`. They all indicate how to extract a value from the command line depending on the presence/absence of a flag name. A parser always associate a parsed value to a type-level string, `"retries"` for example
+
+  3. metadata (help, metavar information) is attached to the parser definition (as in `optparse-applicative`)
+
+  4. commands parsers re-use the basic parsers through metaprogramming (`makeCommand ''Move` uses TemplateHaskell) and conventions in order to attach parsed values to alternatives or fields of a data type (this uses the fact that each parser is associated to a typelevel string). Those conventions can be easily overridden by adding a different `ParserConfiguration` value in the registry
+
+## Not only for command line options
+
+The second difference is that `registry-option` can parse option values from different sources:
+
+ 1. from the command line where the `main` arguments are lexed into a list of flags, options and arguments
+
+ 2. from the environment where the flag names defined in the parsers registry are
+   used to extract string values from the environment
+
+ 3. from a YAML file where the flag names defined in the parsers registry are
+   used to extract string values from the file sections
+
+A configurable policy is then used to specify the relative priority of each value.
+
+## A configurable help text
+
+Finally, the creation of the help text for a given parser is highly configurable thanks to the use of... another registry. The help text can be retrieved with
+```
+displayHelp (parserHelp fsParser) :: Text
+```
+
+And the structure of what is displayed comes from a list of functions, where each function displays a specific part of the help text: an option usage, the option help text, the title of a command etc...
+```
+displayBoxRegistry :: Registry _ _
+displayBoxRegistry =
+  fun displayAllBox
+    <: fun displayHelpTitleBox
+    <: fun displayUsageBox
+    <: fun displayOptionsBox
+    <: fun displayCommandsBox
+    <: fun displayCommandSummaryBox
+    <: fun displayCommandDetailBox
+    <: fun displayCommandTitleBox
+    <: fun displayCommandUsageBox
+    <: fun displayCommandOptionsBox
+    <: fun displayOptionBox
+    <: fun displayOptionBoxes
+    <: fun displayOptionUsageBox
+    <: fun displayOptionFlagBox
+    <: fun displayOptionHelpBox
+    <: fun displayMetavarUsageBox
+    <: fun displayMetavarBox
+    <: val (TableParameters left top 10)
+    <: val (ParagraphWidth 50)
+```
+
+This means that can selectively override parts of the display, the headers of each section, the column width, option usage etc...
+
+Note: we use the [`boxes`](https://hackage.haskell.org/package/boxes) library as the building blocks for laying out text.
