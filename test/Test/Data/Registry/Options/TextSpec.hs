@@ -47,10 +47,10 @@ test_camel_case_to_underscore = test "underscore name to camel case name" $ do
 
 test_underscore_to_hyphenated = test "underscore name to hyphenated case name" $ do
   underscoreToHyphenated "option" === "option"
-  underscoreToHyphenated "option_name" === "optionName"
-  underscoreToHyphenated "prefixed_option_name" === "prefixedOptionName"
+  underscoreToHyphenated "option_name" === "option-name"
+  underscoreToHyphenated "prefixed_option_name" === "prefixed-option-name"
 
 test_hyphenated_to_underscore = test "hyphenated name to underscore name" $ do
   hyphenatedToUnderscore "option" === "option"
-  hyphenatedToUnderscore "optionName" === "option_name"
-  hyphenatedToUnderscore "prefixedOptionName" === "prefixed_option_name"
+  hyphenatedToUnderscore "option-name" === "option_name"
+  hyphenatedToUnderscore "prefixed-option-name" === "prefixed_option_name"

@@ -54,6 +54,46 @@ union (Lexemes m1 fs1 as1 am1) (Lexemes m2 fs2 as2 am2) =
     (as1 <> as2)
     (am1 <|> am2)
 
+-- | Override the values from one Lexemes with the values from another
+--   This is a bit tricky since ambiguous option/flags coming from the command can eventually
+--   be detected to be valid options / flags when parsed as such in the environment or in a config file
+override :: Lexemes -> Lexemes -> Lexemes
+override (Lexemes m1 fs1 as1 am1) (Lexemes m2 fs2 as2 am2) =
+  Lexemes
+    mergeOptions
+    (mergeMax fs1 fs2)
+    (as1 <> as2)
+    mergeAmbiguous
+  where
+    -- merge 2 lists so that every unique element of each list is present
+    -- if there are duplicates in one list or the other, the max number of duplicates is kept
+    mergeMax :: [Text] -> [Text] -> [Text]
+    mergeMax vs1 vs2 = do
+      let g1 = groupByEq vs1
+      let g2 = groupByEq vs2
+      join . Map.elems $ Map.unionWith (\v1 v2 -> if length v1 >= length v2 then v1 else v2) g1 g2
+
+    groupByEq :: Ord a => [a] -> Map a [a]
+    groupByEq = M.toMap . M.fromList . fmap (\a -> (a, a))
+
+    mergeOptions = do
+      let allOptions = M.fromMap . Map.fromList $ M.assocs m1 <> M.assocs m2
+      case (am1, am2) of
+        -- no ambiguous options
+        (Nothing, Nothing) -> allOptions
+        (Just _, Nothing) -> allOptions
+        (_, Just (t2, v2)) ->
+          if t2 `elem` M.keys allOptions then M.fromMap $ Map.fromList (M.assocs allOptions <> [(t2, v2)]) else allOptions
+
+    mergeAmbiguous =
+      case (am1, am2) of
+        (Nothing, Nothing) -> Nothing
+        (Just _, Just (t2, vs2)) -> Just (t2, vs2)
+        (Just (t1, vs1), Nothing) ->
+          if t1 `elem` M.keys m2 then Nothing else Just (t1, vs1)
+        (Nothing, Just (t2, vs2)) ->
+          if t2 `elem` M.keys m1 then Nothing else Just (t2, vs2)
+
 -- * Create lexemes
 
 -- | Lex some input arguments
@@ -68,35 +108,38 @@ mkLexemes [] = mempty
 mkLexemes ("--" : rest) = argsLexemes rest
 mkLexemes [t] =
   -- this is either a single flag or an argument
-  if isDashed t then
-    -- if there is an = sign this an option
-    if "=" `T.isInfixOf` t
-    then makeEqualOptionLexeme t
-    else  makeFlagsLexeme t
-  else argLexemes (dropDashed t)
+  if isDashed t
+    then -- if there is an = sign this an option
+
+      if "=" `T.isInfixOf` t
+        then makeEqualOptionLexeme t
+        else makeFlagsLexeme t
+    else argLexemes (dropDashed t)
 mkLexemes (t : rest) =
   -- if we get an option name
-  if isDashed t then
-    -- if the option value is appended directly to the option name
-    if "=" `T.isInfixOf` t then makeEqualOptionLexeme t <> mkLexemes rest
-    -- otherwise
-    else  do
-        let key = dropDashed t
-        let (vs, others) = L.break isDashed rest
-        -- if there are no values after the option name, we have a flag
-        if null vs
-          then makeFlagsLexeme t <> mkLexemes others
-          else -- otherwise
+  if isDashed t
+    then -- if the option value is appended directly to the option name
 
-          -- if there are additional options/flags, then we collect values for the
-          -- current option and make lexemes for the rest
+      if "=" `T.isInfixOf` t
+        then makeEqualOptionLexeme t <> mkLexemes rest
+        else -- otherwise
+        do
+          let key = dropDashed t
+          let (vs, others) = L.break isDashed rest
+          -- if there are no values after the option name, we have a flag
+          if null vs
+            then makeFlagsLexeme t <> mkLexemes others
+            else -- otherwise
 
-            if any isDashed others
-              then optionsLexemes key vs <> mkLexemes others
-              else -- this case is ambiguous, possibly the values are repeated values for an option
-              -- or the option is a flag with no values and all the rest are arguments
-                ambiguousLexemes key rest
-      else argLexemes t <> mkLexemes rest
+            -- if there are additional options/flags, then we collect values for the
+            -- current option and make lexemes for the rest
+
+              if any isDashed others
+                then optionsLexemes key vs <> mkLexemes others
+                else -- this case is ambiguous, possibly the values are repeated values for an option
+                -- or the option is a flag with no values and all the rest are arguments
+                  ambiguousLexemes key rest
+    else argLexemes t <> mkLexemes rest
 
 -- | Create lexemes for an option name + an option value
 optionLexemes :: Text -> Text -> Lexemes
