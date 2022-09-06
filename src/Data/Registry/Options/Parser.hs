@@ -66,6 +66,17 @@ addParserHelp h p = setParserHelp (parserHelp p <> h) p
 setParserHelp :: Help -> Parser s a -> Parser s a
 setParserHelp h p = p {parserHelp = h}
 
+-- | Retrieve all the option names for this parser
+--   by extracting the help and collecting option names for the top level command
+--   and the subcommands
+getOptionNames :: Parser s a -> [Text]
+getOptionNames p =
+  go (parserHelp p)
+  where
+    go (Help _ _ _ _ os cs _) =
+      catMaybes (_name <$> os) <> concat (_aliases <$> os) <>
+      (go =<< cs)
+
 -- | The Command type can be used to create
 --   parsers which are not given a specific role
 type Command = "Command"
@@ -185,7 +196,7 @@ parseWith os defaultValue activeValue d = do
 --   if there aren't any values left associated to a flag, remove it
 takeOptionValue :: [Text] -> Lexemes -> Maybe (Text, Maybe Text, Lexemes)
 takeOptionValue names lexemes = do
-  headMay $ mapMaybe takeValue (hyphenate <$> names)
+  headMay $ mapMaybe takeValue (camelCaseToHyphenated <$> names)
   where
     takeValue :: Text -> Maybe (Text, Maybe Text, Lexemes)
     takeValue key =

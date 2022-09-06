@@ -7,8 +7,15 @@ import qualified Data.Text as T
 import Protolude
 
 -- | Hyphenate a camelCase Text into camel-case
-hyphenate :: Text -> Text
-hyphenate = T.intercalate "-" . fmap T.toLower . splitCamelCase
+camelCaseToHyphenated :: Text -> Text
+camelCaseToHyphenated = T.intercalate "-" . fmap T.toLower . splitCamelCase
+
+-- | camelCase some hyphenated Text
+hyphenatedToCamelCase :: Text -> Text
+hyphenatedToCamelCase t =
+  case T.splitOn "-" t of
+    [] -> ""
+    t1:ts -> T.concat (t1: (T.toTitle <$> ts))
 
 -- | Drop the leading names in a qualified name
 --   dropQualifier "x.y.z" === "z"
@@ -71,3 +78,22 @@ indent i t = T.intercalate "\n" $ (i <> ) <$> T.lines t
 -- | Remove spaces on the right
 trimRight :: Text -> Text
 trimRight = T.pack . reverse . dropWhile isSpace . reverse. T.unpack
+
+-- | Transform an underscore name to a camelcase one
+underscoreToCamelCase :: Text -> Text
+underscoreToCamelCase t =
+  case T.splitOn "_" t of
+    [] -> ""
+    h:ts -> h <> T.concat (T.toTitle <$> ts)
+
+-- | Transform a camelcase name to an underscore one
+camelCaseToUnderscore :: Text -> Text
+camelCaseToUnderscore t = T.intercalate "_" (T.toLower <$> splitCamelCase t)
+
+-- | Transform an underscore name to a hyphenated one
+underscoreToHyphenated :: Text -> Text
+underscoreToHyphenated = T.intercalate "-" . T.splitOn "_"
+
+-- | Transform a hyphenated name to an underscore one
+hyphenatedToUnderscore :: Text -> Text
+hyphenatedToUnderscore = T.intercalate "_" . T.splitOn "-"

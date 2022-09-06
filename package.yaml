@@ -59,6 +59,7 @@ dependencies:
   - boxes                >= 0.1   && < 1
   - containers           >= 0.2   && < 1
   - bytestring           >= 0.10  && < 1
+  - HsYAML               >= 0.2   && < 1
   - multimap             >= 1.2   && < 2
   - protolude            >= 0.3   && < 0.4
   - registry             >= 0.2   && < 0.4
@@ -83,6 +84,7 @@ tests:
       - registry-options
       - hedgehog
       - registry-hedgehog
+      - directory
       - tasty
       - time
 

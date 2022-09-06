@@ -25,4 +25,4 @@ data FieldConfiguration = FieldConfiguration
 --    - creating a metavar = "CAMELCASE"
 defaultFieldConfiguration :: FieldConfiguration
 defaultFieldConfiguration =
-  FieldConfiguration (Prelude.head . toS . dropQualifier) (hyphenate . dropQualifier) (T.toUpper . dropQualifier)
+  FieldConfiguration (Prelude.head . toS . dropQualifier) (camelCaseToHyphenated . dropQualifier) (T.toUpper . dropQualifier)

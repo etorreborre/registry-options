@@ -75,7 +75,7 @@ help t o = o {_help = Just t}
 displayCliOptionName :: OptionDescription -> Text
 displayCliOptionName o =
   case getNames o of
-    n : _ -> hyphenate n
+    n : _ -> camelCaseToHyphenated n
     [] -> fromMaybe "<empty>" (_metavar o)
 
 -- | Return the possible names for an 'OptionDescription' if they are defined

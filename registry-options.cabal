@@ -34,6 +34,7 @@ library
       Data.Registry.Options.OptionDescription
       Data.Registry.Options.Parser
       Data.Registry.Options.Parsers
+      Data.Registry.Options.Sources
       Data.Registry.Options.Text
       Data.Registry.Options.TH
   other-modules:
@@ -73,7 +74,8 @@ library
       TypeOperators
   ghc-options: -Wall -Wcompat -Wincomplete-record-updates -fhide-source-paths -fprint-potential-instances -fno-warn-partial-type-signatures -optP-Wno-nonportable-include-path -Wincomplete-uni-patterns
   build-depends:
-      base >=4.7 && <5
+      HsYAML >=0.2 && <1
+    , base >=4.7 && <5
     , boxes >=0.1 && <1
     , bytestring >=0.10 && <1
     , containers >=0.2 && <1
@@ -105,6 +107,7 @@ test-suite spec
       Test.Data.Registry.Options.Maker
       Test.Data.Registry.Options.MakerSpec
       Test.Data.Registry.Options.ParserSpec
+      Test.Data.Registry.Options.SourcesSpec
       Test.Data.Registry.Options.TextSpec
       Paths_registry_options
   hs-source-dirs:
@@ -142,10 +145,12 @@ test-suite spec
       TypeOperators
   ghc-options: -Wall -Wcompat -Wincomplete-record-updates -fhide-source-paths -fprint-potential-instances -fno-warn-partial-type-signatures -optP-Wno-nonportable-include-path -threaded -rtsopts -with-rtsopts=-N -fno-warn-orphans -fno-warn-missing-signatures -fno-warn-incomplete-uni-patterns -fno-warn-type-defaults -optP-Wno-nonportable-include-path
   build-depends:
-      base >=4.7 && <5
+      HsYAML >=0.2 && <1
+    , base >=4.7 && <5
     , boxes >=0.1 && <1
     , bytestring >=0.10 && <1
     , containers >=0.2 && <1
+    , directory
     , hedgehog
     , multimap >=1.2 && <2
     , protolude ==0.3.*
