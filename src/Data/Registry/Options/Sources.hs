@@ -44,12 +44,12 @@ import Protolude
 import System.Environment (getEnvironment, lookupEnv)
 
 -- | Get lexemes
-getLexemes :: IO Lexemes
-getLexemes = make @(IO Lexemes) sourcedLexemes
+getLexemes :: MonadIO m => m Lexemes
+getLexemes = getLexemesWith (const sources)
 
 -- | Get lexemes with a modified registry
-getLexemesWith :: (Registry _ _ -> Registry _ _) -> IO Lexemes
-getLexemesWith f = make @(IO Lexemes) (f sourcedLexemes)
+getLexemesWith :: MonadIO m => (Registry _ _ -> Registry _ _) -> m  Lexemes
+getLexemesWith f = liftIO $ make @(IO Lexemes) (f sources)
 
 -- | Set option names on the registry
 setOptionNames :: [Text] -> Registry _ _ -> Registry _ _
@@ -76,8 +76,8 @@ setPriorities :: [Source] -> Registry _ _ -> Registry _ _
 setPriorities ps r = valTo @IO (Priorities ps) +: r
 
 -- | Registry allowing the retrieval of Lexemes from various sources: command line, environment variable, configuration file
-sourcedLexemes :: Registry _ _
-sourcedLexemes =
+sources :: Registry _ _
+sources =
   funTo @IO selectValues
     <: funTo @IO getValuesFromEnvironment
     <: funTo @IO getValuesFromYaml
@@ -230,9 +230,9 @@ defaultPriorities = Priorities [environmentSource, commandLineSource, yamlSource
 
 -- | Sort a list of values associated with a source, using Priorities to determine the order
 sortBySource :: Priorities -> [(Source, a)] -> [a]
-sortBySource (Priorities ps) sources = do
+sortBySource (Priorities ps) ss = do
   let compareSource source1 source2 = compare (L.elemIndex source1 ps) (L.elemIndex source2 ps)
-  snd <$> sortBy (\(s1, _) (s2, _) -> compareSource s1 s2) sources
+  snd <$> sortBy (\(s1, _) (s2, _) -> compareSource s1 s2) ss
 
 -- | Source of an option value
 --   This is modelled as a simple newtype on Text in order to enable

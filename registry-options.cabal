@@ -31,6 +31,7 @@ library
       Data.Registry.Options.FieldConfiguration
       Data.Registry.Options.Help
       Data.Registry.Options.Lexemes
+      Data.Registry.Options.Main
       Data.Registry.Options.OptionDescription
       Data.Registry.Options.Parser
       Data.Registry.Options.Parsers

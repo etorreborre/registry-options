@@ -219,6 +219,8 @@ The second difference is that `registry-option` can parse option values from dif
 
 A configurable policy is then used to specify the relative priority of each value.
 
+This is also supported by a registry internal which allows to selectively change many things about the sources, their configuration and priorities.
+
 ## A configurable help text
 
 Finally, the creation of the help text for a given parser is highly configurable thanks to the use of... another registry. The help text can be retrieved with
