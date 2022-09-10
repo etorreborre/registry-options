@@ -1,6 +1,6 @@
 # `registry-options`
 
-[![Hackage](https://img.shields.io/hackage/v/registry.svg)](https://hackage.haskell.org/package/registry-options) [![Build Status](https://github.com/etorreborre/registry-options/workflows/CI/badge.svg)](https://github.com/etorreborre/registry-options/actions)
+[![Hackage](https://img.shields.io/hackage/v/registry-options.svg)](https://hackage.haskell.org/package/registry-options) [![Build Status](https://github.com/etorreborre/registry-options/workflows/ci/badge.svg)](https://github.com/etorreborre/registry-options/actions)
 
 
 ##### *It's functions all the way down* <img src="https://raw.githubusercontent.com/etorreborre/registry-options/main/doc/images/unboxed-bottomup.jpg" border="0"/>
