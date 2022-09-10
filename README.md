@@ -76,7 +76,10 @@ OPTIONS
   TARGET                    Target path
 ```
 
-# Read options
+_Note_: via the use of another registry it is possible to customize any part of the help.
+See the documentation and functions in `Data.Registry.Options.DisplayHelpBox` on how to override various sections of the help text.
+
+# Read option values
 
 When we want to effectively run a parser and retrieve values we call the `run` function
 
@@ -101,12 +104,6 @@ runWith @Command @Copy (setConfigFilePath ".configuration.yaml") parsers
   - fully developed [example][example]: we explain in detail all the declarations above and their role
   - [motivations][motivations]: why was this library created? How does it differ from similar libraries?
   - [sources][sources]: how to configure and extend sources
-  - reference guide: all the primitives for creating, configuring and assembling parsers
-  - how-to guide
-       - create sub-commands
-       - add standard `--help` and `--version` flags
-       - parse environment variables
-       - parse configuration file variables
 
 [example]: http://github.com/etorreborre/registry-options/blob/main/doc/example.md
 [motivations]: http://github.com/etorreborre/registry-options/blob/main/doc/motivations.md

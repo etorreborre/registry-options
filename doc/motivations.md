@@ -219,17 +219,17 @@ The second difference is that `registry-option` can parse option values from dif
 
 A configurable policy is then used to specify the relative priority of each value.
 
-This is also supported by a registry internal which allows to selectively change many things about the sources, their configuration and priorities.
+This is supported by another registry which allows to selectively override everything about the sources, their configuration and priorities.
 
 ## A configurable help text
 
 Finally, the creation of the help text for a given parser is highly configurable thanks to the use of... another registry. The help text can be retrieved with
-```
+```haskell
 displayHelp (parserHelp fsParser) :: Text
 ```
 
 And the structure of what is displayed comes from a list of functions, where each function displays a specific part of the help text: an option usage, the option help text, the title of a command etc...
-```
+```haskell
 displayBoxRegistry :: Registry _ _
 displayBoxRegistry =
   fun displayAllBox
