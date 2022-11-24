@@ -5,36 +5,29 @@
 
 packages:
 - completed:
-    hackage: protolude-0.3.1@sha256:1cc9e5a5c26c33a43c52b554443dd9779fef13974eaa0beec7ca6d2551b400da,2647
+    hackage: registry-0.4.0.0@sha256:7cb3fdc83af372d5cfff93aaaa16b336c44e312a71b75233482c36e53750f5f7,5178
     pantry-tree:
-      size: 1645
-      sha256: 6452a6ca8d395f7d810139779bb0fd16fc1dbb00f1862630bc08ef5a100430f9
+      sha256: 99205d3c7a7ca172d99a9e9692a1afd2af1208fe726d9e08c1f38783260bbdd5
+      size: 4160
   original:
-    hackage: protolude-0.3.1
+    hackage: registry-0.4.0.0
 - completed:
-    hackage: registry-0.3.2.1@sha256:2846e1dff8c628e2fed24cce2592abb25df54ce73e3143fe7dbfabfe0f6d5bb4,5833
+    hackage: registry-hedgehog-0.8.0.0@sha256:212aa1291b9c388a572154a8de071d33e81b16b92ca8ceca1967804df4bd3dd0,3541
     pantry-tree:
-      size: 3982
-      sha256: 9c00d5a72007be5020d3f45edf1276ff7f22d20fad5b8060c00891ed5a2f7c72
-  original:
-    hackage: registry-0.3.2.1
-- completed:
-    hackage: registry-hedgehog-0.7.0.3@sha256:26e826ab3f6ca9f82a0a2c7a9c84ebea8dab1e402442d13cd0ae8a09f11b89a4,4287
-    pantry-tree:
+      sha256: 9352ae872c2770a4ba243f4e64cc6cbbc8d242f417dbbdfaa19cfc0c7e5238cc
       size: 1379
-      sha256: 5333dc93c7b84bc7d42754d290f1d423af855f479dc5102c3540ccc271fac5da
   original:
-    hackage: registry-hedgehog-0.7.0.3
+    hackage: registry-hedgehog-0.8.0.0
 - completed:
     hackage: universum-1.8.1@sha256:f4fa0a6362dc33f8d41a520d84d3636eb6a63ae7762599e2a595d02e5252e00e,6661
     pantry-tree:
-      size: 3533
       sha256: be4b1f38b18fbf052002bbc46acec260a8c4a2488c2a01c3eee9feb39eef7e83
+      size: 3533
   original:
     hackage: universum-1.8.1
 snapshots:
 - completed:
-    size: 605110
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/nightly/2022/6/6.yaml
-    sha256: 26ea900ee8601fee24ff84981e92f304d384c73ee32d5504299133b5eb177e87
-  original: nightly-2022-06-06
+    sha256: b73b2b116143aea728c70e65c3239188998bac5bc3be56465813dacd74215dc5
+    size: 648424
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/20/1.yaml
+  original: lts-20.1

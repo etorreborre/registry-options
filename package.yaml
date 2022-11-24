@@ -1,5 +1,5 @@
 name: registry-options
-version: 0.1.0.0
+version: 0.2.0.0
 synopsis: application options parsing
 
 description: This library provides various parsers for assembling application options
@@ -22,37 +22,23 @@ ghc-options: -Wall
   -fno-warn-partial-type-signatures
   -optP-Wno-nonportable-include-path
 
+language: GHC2021
+
 default-extensions:
-  - BangPatterns
   - DefaultSignatures
-  - EmptyCase
-  - ExistentialQuantification
-  - FlexibleContexts
-  - FlexibleInstances
+  - DerivingStrategies
+  - DerivingVia
   - FunctionalDependencies
   - GADTs
-  - DerivingVia
-  - DerivingStrategies
-  - ImportQualifiedPost
-  - InstanceSigs
-  - KindSignatures
   - LambdaCase
-  - MultiParamTypeClasses
   - MultiWayIf
-  - NamedFieldPuns
   - NoImplicitPrelude
   - OverloadedStrings
   - PatternSynonyms
-  - Rank2Types
-  - RankNTypes
-  - ScopedTypeVariables
-  - StandaloneDeriving
+  - StrictData
   - TemplateHaskell
-  - TupleSections
-  - TypeApplications
   - TypeFamilies
   - TypeFamilyDependencies
-  - TypeOperators
 
 dependencies:
   - base                 >= 4.7   && < 5
@@ -62,7 +48,7 @@ dependencies:
   - HsYAML               >= 0.2   && < 1
   - multimap             >= 1.2   && < 2
   - protolude            >= 0.3   && < 0.4
-  - registry             >= 0.2   && < 0.4
+  - registry             >= 0.4   && < 1
   - template-haskell     >= 2.13  && < 3.0
   - text                 >= 1     && < 2
   - transformers         >= 0.5   && < 2
